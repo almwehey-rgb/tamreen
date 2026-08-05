@@ -195,7 +195,7 @@ export default function App() {
         <div style={{ position: "fixed", top: 14, left: "50%", transform: "translateX(-50%)", background: COLORS.surface3, color: COLORS.gold, padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700, zIndex: 50, border: `1px solid ${COLORS.gold}` }}>{toast}</div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px 0" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "calc(12px + env(safe-area-inset-top)) 16px 0" }}>
         <div style={{ display: "flex", background: COLORS.surface, borderRadius: 10, border: `1px solid ${COLORS.line}`, overflow: "hidden" }}>
           {["ar", "en"].map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
