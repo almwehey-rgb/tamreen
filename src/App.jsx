@@ -6,8 +6,20 @@ const PROGRAM = {"phase1": [{"day": 1, "title": "اليوم الأول: سحب (
 const META = {"profile": {"subscription": "محسنات الأداء", "job": "مساعد مهندس", "tools": "نادي كامل", "experience": "أكثر من ٣ سنوات", "activity": "-", "goal": "زيادة الكتلة العضلية", "trainingDays": 5, "weight": 65, "height": 171, "age": 30, "weeklySteps": 70000, "weeklyCalories": 19950, "cardio": "العدد: 2   |   النوعية: غزالة أو درج شدة 7-10   |   المدة: 30 دقيقة", "dailySteps": 10000, "dailyCalories": "2800-2900", "fiber": "25-30g", "fat": "65-70g", "carbs": "399-403g", "protein": "155-160g", "coachName": "راشد الناجم", "clientName": "تركي فهد المطيري"}, "meals": [{"category": "وجبات منزلية", "items": [{"name": "Chicken Shawarma", "cal": 634.4, "protein": 65, "netCarb": 62.1, "fiber": 6.9, "fat": 14, "video": "https://youtu.be/EjDkyyPYVOc"}, {"name": "Meatballs with Rice", "cal": 479, "protein": 25.1, "netCarb": 55.5, "fiber": 7.1, "fat": 17.4, "video": "https://youtube.com/shorts/-Y0Fin_lJxU"}, {"name": "Burger With Mushroom", "cal": 559.7, "protein": 37.5, "netCarb": 59, "fiber": 2.1, "fat": 19.3, "video": "https://youtube.com/shorts/DBgiBj5iYrs"}]}, {"category": "وجبات McDonald's", "items": [{"name": "McChicken", "cal": 410, "protein": 17, "netCarb": 45, "fiber": 2, "fat": 18}]}, {"category": "وجبات Subway", "items": [{"name": "Flat bread (eggs and turkey) American cheese", "cal": 504, "protein": 30, "netCarb": 42, "fiber": 1, "fat": 24}]}, {"category": "سناكات", "items": [{"name": "1 Bannana 1tbsp Peanut butter 1 scoop Protein", "cal": 309, "protein": 30, "netCarb": 27, "fiber": 5, "fat": 9}]}]};
 
 
-const ARABIC_NUM = { "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9" };
-function toEnNum(s){ if(s==null) return s; return String(s).replace(/[٠-٩]/g, d => ARABIC_NUM[d]); }
+const ARABIC_NUM = {
+  "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9",
+  "۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9",
+};
+function toEnNum(value) {
+  if (value == null) return value;
+  return String(value).replace(/[٠-٩۰-۹]/g, digit => ARABIC_NUM[digit]);
+}
+function formatEnNumber(value) {
+  if (value == null || value === "") return value;
+  const normalized = toEnNum(value);
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric.toLocaleString("en-US") : normalized;
+}
 
 const EX_TR = {"بار عالي":"High Bar Press","بطات جالس":"Seated Calf Raise","بطات واقف":"Standing Calf Raise","بلانك":"Plank","بنش مرتفع بايسبس":"Incline Bicep Bench","بنش منخفض معده":"Decline Bench Abs","تي-بار ضيق":"T-Bar Row (Close Grip)","جهاز أكتاف":"Shoulder Press Machine","جهاز أكتاف جانبي":"Lateral Raise Machine","جهاز أكتاف خلفي":"Rear Delt Machine","جهاز باي ضيق":"Close-Grip Bicep Machine","جهاز تجديف واسع":"Wide Row Machine","جهاز تجميع":"Pec Deck Fly","جهاز دفع":"Chest Press Machine","جهاز مستوي جالس":"Seated Row Machine","جهاز معده":"Ab Machine","جهاز هاك سكوات":"Hack Squat","حبل أكتاف خلفي":"Rope Rear Delt Pull","دامبل أكتاف جانبي جالس":"Seated DB Lateral Raise","دامبل تجميع":"Dumbbell Fly","دامبل تراي":"DB Tricep Extension","دامبل ددلفت روم":"DB Romanian Deadlift","دامبل دفع":"Dumbbell Press","دامبل مثلثات":"Dumbbell Shrugs","دبس للتراي":"Tricep Dips","ددلفت ستف":"Stiff-Leg Deadlift","رفرفة امامي":"Front Raise","رفرفة خلفي جالس":"Seated Rear Delt Fly","رفرفة خلفي منسدح":"Lying Rear Delt Fly","سحب مسطرة":"Straight Bar Pulldown","عقلة":"Pull-up","كيبل بايسبس":"Cable Bicep Curl","كيبل سحب واسع":"Wide Grip Pulldown","كيبل مسطرة":"Cable Tricep Pushdown","لنجز":"Lunges"};
 
@@ -16,9 +28,9 @@ const DAY_TR = {"اليوم الأول: سحب ( ظهر + باي + أكتاف خ
 const MEAL_CAT_TR = {"وجبات منزلية":"Home Meals","وجبات McDonald's":"McDonald's","وجبات Subway":"Subway","سناكات":"Snacks"};
 
 const COLORS = {
-  bg: "#121214", surface: "#1B1C1F", surface2: "#232428", surface3: "#2C2D32",
-  line: "#34353A", text: "#F2EFE7", muted: "#8D8F92", mutedDim: "#5C5E63",
-  gold: "#C9A227", goldDim: "#8f7420", green: "#5AA06B", rust: "#C15A3C", blue: "#5C8AA6",
+  canvas: "#343434", bg: "#101012", surface: "#18191B", surface2: "#202124", surface3: "#28292D",
+  line: "#34353A", text: "#F3F0E8", muted: "#A0A1A5", mutedDim: "#66686E",
+  gold: "#D7AD2B", goldDim: "#8F7420", green: "#659675", rust: "#B86A50", blue: "#8B8D92",
 };
 
 function Ring({ pct, size = 64, stroke = 7, color = COLORS.gold, children }) {
@@ -41,7 +53,7 @@ function Ring({ pct, size = 64, stroke = 7, color = COLORS.gold, children }) {
 /* Editable text/number bound to the overrides store. When editMode is off it's plain text;
    when on, it becomes an inline input. Edits are language-independent (what you type is what shows). */
 function Ed({ id, fallback, editMode, overrides, setOverride, style, width, tag = "span" }) {
-  const val = overrides[id] !== undefined ? overrides[id] : fallback;
+  const val = toEnNum(overrides[id] !== undefined ? overrides[id] : fallback);
   if (!editMode) {
     const Tag = tag;
     return <Tag style={style}>{val}</Tag>;
@@ -49,7 +61,7 @@ function Ed({ id, fallback, editMode, overrides, setOverride, style, width, tag 
   return (
     <input
       value={val}
-      onChange={e => setOverride(id, e.target.value)}
+      onChange={e => setOverride(id, toEnNum(e.target.value))}
       style={{
         ...style, background: COLORS.surface2, border: `1px solid ${COLORS.gold}`, borderRadius: 6,
         padding: "2px 6px", width: width || `${Math.max(3, val.length)}ch`, fontFamily: "inherit", color: COLORS.text,
@@ -60,7 +72,7 @@ function Ed({ id, fallback, editMode, overrides, setOverride, style, width, tag 
 
 const TABS = [
   { key: "home", ar: "الرئيسية", en: "Home", icon: "⌂" },
-  { key: "workout", ar: "التمارين", en: "Workout", icon: "▲" },
+  { key: "workout", ar: "التمرين", en: "Workout", icon: "▲" },
   { key: "followup", ar: "المتابعة", en: "Progress", icon: "◐" },
   { key: "menu", ar: "المنيو", en: "Menu", icon: "◈" },
 ];
@@ -108,6 +120,14 @@ function emptyFollowup() {
   return weeks;
 }
 
+function getLatestScheduleWeek(followup) {
+  for (let week = TOTAL_WEEKS; week >= 1; week--) {
+    const entry = followup?.[week];
+    if (entry && Object.values(entry).some(value => String(value ?? "").trim() !== "")) return week;
+  }
+  return null;
+}
+
 export default function App() {
   const [tab, setTab] = useState("home");
   const [loaded, setLoaded] = useState(false);
@@ -133,7 +153,13 @@ export default function App() {
         if (res && res.value) {
           const parsed = JSON.parse(res.value);
           if (parsed.workoutLogs) setWorkoutLogs(parsed.workoutLogs);
-          if (parsed.followup) setFollowup({ ...emptyFollowup(), ...parsed.followup });
+          if (parsed.followup) {
+            const savedFollowup = { ...emptyFollowup(), ...parsed.followup };
+            const latestWeek = getLatestScheduleWeek(savedFollowup) || 1;
+            setFollowup(savedFollowup);
+            setPhase(latestWeek <= 6 ? 1 : 2);
+            setWeekIdx((latestWeek - 1) % 6);
+          }
           if (parsed.overrides) setOverrides(parsed.overrides);
           if (parsed.lang) setLang(parsed.lang);
         }
@@ -161,6 +187,18 @@ export default function App() {
 
   const globalWeekNum = phase === 1 ? weekIdx + 1 : weekIdx + 7;
 
+  const openTab = useCallback((nextTab) => {
+    if (nextTab === "workout") {
+      const latestWeek = getLatestScheduleWeek(followup) || 1;
+      const nextPhase = latestWeek <= 6 ? 1 : 2;
+      const nextWeekIdx = (latestWeek - 1) % 6;
+      if (nextPhase !== phase || nextWeekIdx !== weekIdx) setDayIdx(0);
+      setPhase(nextPhase);
+      setWeekIdx(nextWeekIdx);
+    }
+    setTab(nextTab);
+  }, [followup, phase, weekIdx]);
+
   const setExerciseLog = useCallback((exKey, updater) => {
     setWorkoutLogs(prev => {
       const cur = prev[exKey] || { weight: "", reps: [] };
@@ -183,10 +221,23 @@ export default function App() {
   const dir = lang === "ar" ? "rtl" : "ltr";
 
   return (
-    <div dir={dir} style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.text, fontFamily: "'Tajawal', sans-serif", paddingBottom: 84 }}>
+    <div className="app-shell" dir={dir} style={{ background: COLORS.bg, color: COLORS.text, fontFamily: "'Tajawal', sans-serif", paddingBottom: 84 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;800;900&family=Tajawal:wght@400;500;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html { background: ${COLORS.canvas}; color-scheme: dark; }
+        body { background: ${COLORS.canvas}; }
+        button, input, textarea, select { font-variant-numeric: lining-nums tabular-nums; }
+        .app-shell {
+          width: min(100%, 520px);
+          min-height: calc(100vh - 28px);
+          margin: 28px auto 0;
+          position: relative;
+          box-shadow: 18px 0 0 rgba(16, 16, 18, 0.22);
+        }
+        @media (max-width: 520px) {
+          .app-shell { min-height: 100vh; margin-top: 0; box-shadow: none; }
+        }
         ::selection { background: ${COLORS.gold}; color: #1a1508; }
         input:focus, select:focus, button:focus-visible { outline: 2px solid ${COLORS.gold}; outline-offset: 1px; }
       `}</style>
@@ -230,9 +281,9 @@ export default function App() {
         {tab === "menu" && <MenuTab mealCat={mealCat} setMealCat={setMealCat} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride} />}
       </ErrorBoundary>
 
-      <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(27,28,31,0.92)", backdropFilter: "blur(10px)", borderTop: `1px solid ${COLORS.line}`, display: "flex", padding: "8px 6px calc(8px + env(safe-area-inset-bottom))", zIndex: 40 }}>
+      <nav style={{ position: "fixed", bottom: 0, left: "50%", width: "min(100%, 520px)", transform: "translateX(-50%)", background: "rgba(24,25,27,0.96)", backdropFilter: "blur(10px)", borderTop: `1px solid ${COLORS.line}`, display: "flex", padding: "8px 6px calc(8px + env(safe-area-inset-bottom))", zIndex: 40 }}>
         {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 2px", color: tab === t.key ? COLORS.gold : COLORS.mutedDim }}>
+          <button key={t.key} onClick={() => openTab(t.key)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 2px", color: tab === t.key ? COLORS.gold : COLORS.mutedDim, transition: "color 160ms ease" }}>
             <span style={{ fontSize: 18, lineHeight: 1 }}>{t.icon}</span>
             <span style={{ fontSize: 11, fontWeight: 700 }}>{T(t.ar, t.en)}</span>
           </button>
@@ -245,10 +296,7 @@ export default function App() {
 /* ---------------- HOME ---------------- */
 function HomeTab({ followup, T, editMode, overrides, setOverride }) {
   const p = META.profile;
-  const latestWeek = useMemo(() => {
-    for (let i = TOTAL_WEEKS; i >= 1; i--) if (followup[i] && (followup[i].steps || followup[i].calories)) return i;
-    return null;
-  }, [followup]);
+  const latestWeek = useMemo(() => getLatestScheduleWeek(followup), [followup]);
   const cur = latestWeek ? followup[latestWeek] : null;
   const weeklySteps = Number(overrides["profile.weeklySteps"] ?? p.weeklySteps);
   const weeklyCalories = Number(overrides["profile.weeklyCalories"] ?? p.weeklyCalories);
@@ -294,7 +342,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
           <div>
             <div style={{ fontSize: 12, color: COLORS.muted }}>{T("الخطوات الأسبوعية", "Weekly steps")}</div>
             <div style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16, marginTop: 3 }}>
-              {cur && cur.steps ? Number(cur.steps).toLocaleString() : "—"} <span style={{ fontSize: 11, color: COLORS.mutedDim, fontFamily: "'Tajawal', sans-serif" }}>/ {ed("profile.weeklySteps", String(p.weeklySteps), { fontSize: 11 })}</span>
+              {cur && cur.steps ? formatEnNumber(cur.steps) : "—"} <span style={{ fontSize: 11, color: COLORS.mutedDim, fontFamily: "'Tajawal', sans-serif" }}>/ {ed("profile.weeklySteps", String(p.weeklySteps), { fontSize: 11 })}</span>
             </div>
           </div>
         </div>
@@ -303,7 +351,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
           <div>
             <div style={{ fontSize: 12, color: COLORS.muted }}>{T("السعرات الأسبوعية", "Weekly calories")}</div>
             <div style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16, marginTop: 3 }}>
-              {cur && cur.calories ? Number(cur.calories).toLocaleString() : "—"} <span style={{ fontSize: 11, color: COLORS.mutedDim, fontFamily: "'Tajawal', sans-serif" }}>/ {ed("profile.weeklyCalories", String(p.weeklyCalories), { fontSize: 11 })}</span>
+              {cur && cur.calories ? formatEnNumber(cur.calories) : "—"} <span style={{ fontSize: 11, color: COLORS.mutedDim, fontFamily: "'Tajawal', sans-serif" }}>/ {ed("profile.weeklyCalories", String(p.weeklyCalories), { fontSize: 11 })}</span>
             </div>
           </div>
         </div>
@@ -329,7 +377,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
         {editMode
           ? <textarea value={overrides["profile.cardio"] ?? p.cardio} onChange={e => setOverride("profile.cardio", e.target.value)}
               style={{ width: "100%", minHeight: 60, background: COLORS.surface2, border: `1px solid ${COLORS.gold}`, borderRadius: 8, color: COLORS.text, fontSize: 13, padding: 8, fontFamily: "inherit" }} />
-          : <div style={{ fontSize: 13, color: COLORS.muted, lineHeight: 1.9 }}>{overrides["profile.cardio"] ?? p.cardio}</div>}
+          : <div style={{ fontSize: 13, color: COLORS.muted, lineHeight: 1.9 }}>{toEnNum(overrides["profile.cardio"] ?? p.cardio)}</div>}
       </div>
 
       <div style={{ fontSize: 11, color: COLORS.mutedDim, textAlign: "center", marginTop: 18, lineHeight: 1.8 }}>
@@ -401,9 +449,9 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           return (
             <button key={i} onClick={() => setDayIdx(i)} style={{
               flex: 1, padding: "8px 2px", borderRadius: 10, position: "relative",
-              border: `1px solid ${dayIdx === i ? COLORS.blue : (dDone ? COLORS.green : COLORS.line)}`,
-              background: dayIdx === i ? "rgba(92,138,166,0.18)" : (dDone ? "rgba(90,160,107,0.1)" : "transparent"),
-              color: dayIdx === i ? "#8FC3E8" : (dDone ? COLORS.green : COLORS.mutedDim),
+              border: `1px solid ${dayIdx === i ? COLORS.gold : (dDone ? COLORS.green : COLORS.line)}`,
+              background: dayIdx === i ? "rgba(215,173,43,0.14)" : (dDone ? "rgba(90,160,107,0.1)" : "transparent"),
+              color: dayIdx === i ? COLORS.gold : (dDone ? COLORS.green : COLORS.mutedDim),
               fontSize: 11, fontWeight: 700, cursor: "pointer",
             }}>
               {dDone && <span style={{ position: "absolute", top: -6, insetInlineEnd: -4, fontSize: 12 }}>✓</span>}
@@ -435,7 +483,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
 
       {isDeload && (
         <div style={{ background: "rgba(193,90,60,0.12)", border: `1px solid ${COLORS.rust}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#E6A28D", lineHeight: 1.8 }}>
-          {T("أسبوع ديلود (راحة نشطة) — خفّف الأوزان ٢٠-٣٠٪ ولا توصل للفشل العضلي.", "Deload week (active recovery) — cut weights 20-30% and avoid muscular failure.")}
+          {T("أسبوع ديلود (راحة نشطة) — خفّف الأوزان 20-30% ولا توصل للفشل العضلي.", "Deload week (active recovery) — cut weights 20-30% and avoid muscular failure.")}
         </div>
       )}
 
@@ -468,7 +516,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 12,
                     }}
-                  >{log.done ? "✓" : ex.num}</button>
+                  >{log.done ? "✓" : toEnNum(ex.num)}</button>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <Ed id={nameId} fallback={defaultName} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontWeight: 700, fontSize: 15, textDecoration: log.done ? "line-through" : "none", opacity: log.done ? 0.7 : 1 }} width="12em" />
@@ -499,7 +547,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
                 <label style={{ fontSize: 11, color: COLORS.muted, flexShrink: 0 }}>{T("الوزن", "Weight")}</label>
                 <input type="text" inputMode="decimal" placeholder="kg" value={log.weight}
-                  onChange={e => setExerciseLog(key, cur => ({ ...cur, weight: e.target.value }))}
+                  onChange={e => setExerciseLog(key, cur => ({ ...cur, weight: toEnNum(e.target.value) }))}
                   style={{ width: 70, background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 10.5, color: COLORS.mutedDim }}>{T("سجّل تكرارات كل جولة", "Log reps per set")}</span>
@@ -511,7 +559,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                     <input type="text" inputMode="numeric" placeholder="-" value={(log.reps && log.reps[si]) || ""}
                       onChange={e => setExerciseLog(key, cur => {
                         const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
-                        reps[si] = e.target.value;
+                        reps[si] = toEnNum(e.target.value);
                         return { ...cur, reps };
                       })}
                       style={{ width: 40, height: 40, borderRadius: "50%", textAlign: "center", border: `2px solid ${(log.reps && log.reps[si]) ? COLORS.gold : COLORS.line}`, background: (log.reps && log.reps[si]) ? "rgba(201,162,39,0.14)" : COLORS.surface2, color: COLORS.text, fontWeight: 800, fontSize: 14, fontFamily: "'Cairo', sans-serif" }} />
@@ -555,21 +603,21 @@ function FollowupTab({ followup, setFollowup, T }) {
           <LineChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
             <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="week" tick={{ fill: COLORS.mutedDim, fontSize: 10 }} axisLine={{ stroke: COLORS.line }} tickLine={false} />
-            <YAxis domain={["dataMin - 2", "dataMax + 2"]} tick={{ fill: COLORS.mutedDim, fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
-            <Tooltip contentStyle={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: COLORS.text }} />
+            <YAxis domain={["dataMin - 2", "dataMax + 2"]} tick={{ fill: COLORS.mutedDim, fontSize: 10 }} tickFormatter={formatEnNumber} axisLine={false} tickLine={false} width={30} />
+            <Tooltip formatter={formatEnNumber} contentStyle={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: COLORS.text }} />
             <Line type="monotone" dataKey="weight" name={T("الوزن", "Weight")} stroke={COLORS.gold} strokeWidth={2.5} dot={{ r: 3, fill: COLORS.gold }} connectNulls />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       <div style={{ background: COLORS.surface, borderRadius: 16, padding: "14px 8px 4px", border: `1px solid ${COLORS.line}`, marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: COLORS.muted, padding: "0 8px 10px", fontWeight: 700 }}>{T(`الخطوات الأسبوعية مقابل الهدف (${META.profile.weeklySteps.toLocaleString()})`, `Weekly steps vs. goal (${META.profile.weeklySteps.toLocaleString()})`)}</div>
+        <div style={{ fontSize: 12, color: COLORS.muted, padding: "0 8px 10px", fontWeight: 700 }}>{T(`الخطوات الأسبوعية مقابل الهدف (${formatEnNumber(META.profile.weeklySteps)})`, `Weekly steps vs. goal (${formatEnNumber(META.profile.weeklySteps)})`)}</div>
         <ResponsiveContainer width="100%" height={140}>
           <BarChart data={chartData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
             <CartesianGrid stroke={COLORS.line} strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="week" tick={{ fill: COLORS.mutedDim, fontSize: 10 }} axisLine={{ stroke: COLORS.line }} tickLine={false} />
-            <YAxis tick={{ fill: COLORS.mutedDim, fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
-            <Tooltip contentStyle={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: COLORS.text }} />
+            <YAxis tick={{ fill: COLORS.mutedDim, fontSize: 10 }} tickFormatter={formatEnNumber} axisLine={false} tickLine={false} width={30} />
+            <Tooltip formatter={formatEnNumber} contentStyle={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: COLORS.text }} />
             <Bar dataKey="steps" name={T("الخطوات", "Steps")} fill={COLORS.blue} radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -598,7 +646,7 @@ function FollowupTab({ followup, setFollowup, T }) {
                   ].map(([field, label]) => (
                     <div key={field}>
                       <label style={{ fontSize: 11, color: COLORS.muted, display: "block", marginBottom: 4 }}>{label}</label>
-                      <input type="text" inputMode="decimal" value={data[field] || ""} onChange={e => update(wk, field, e.target.value)}
+                      <input type="text" inputMode="decimal" value={toEnNum(data[field] || "")} onChange={e => update(wk, field, toEnNum(e.target.value))}
                         style={{ width: "100%", background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
                     </div>
                   ))}
