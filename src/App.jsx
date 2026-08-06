@@ -439,6 +439,28 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
     }
   }, [phase, weekIdx, dayIdx]);
 
+  const dayKey = `p${phase}-w${weekIdx}-d${dayIdx}`;
+  const prevDayStateRef = useRef({ key: dayKey, doneCount });
+  useEffect(() => {
+    const prev = prevDayStateRef.current;
+    const justCompleted = prev.key === dayKey && prev.doneCount < totalCount && doneCount === totalCount && totalCount > 0;
+    prevDayStateRef.current = { key: dayKey, doneCount };
+    if (!justCompleted) return;
+    const timer = setTimeout(() => {
+      if (dayIdx < days.length - 1) {
+        setDayIdx(dayIdx + 1);
+      } else if (weekIdx < day.weeks.length - 1) {
+        setWeekIdx(weekIdx + 1);
+        setDayIdx(0);
+      } else if (phase === 1) {
+        setPhase(2);
+        setWeekIdx(0);
+        setDayIdx(0);
+      }
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [dayKey, doneCount, totalCount, dayIdx, weekIdx, phase, days.length, day.weeks.length, setDayIdx, setWeekIdx, setPhase]);
+
   return (
     <div style={{ padding: "16px 16px 8px" }}>
       <SectionTitle
