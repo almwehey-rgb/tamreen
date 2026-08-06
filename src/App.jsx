@@ -766,12 +766,11 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                       onChange={e => {
                         const newVal = toEnNum(e.target.value);
                         const wasEmpty = !(log.reps && log.reps[si]);
-                        setExerciseLog(key, cur => {
-                          const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
-                          reps[si] = newVal;
-                          return { ...cur, reps };
-                        });
+                        const newReps = Array.from({ length: numSets }).map((_, k) => (k === si ? newVal : (log.reps && log.reps[k]) || ""));
+                        const justCompleted = numSets > 0 && newReps.every(r => r);
+                        setExerciseLog(key, cur => ({ ...cur, reps: newReps, done: justCompleted ? true : cur.done }));
                         if (wasEmpty && newVal) startRest(parseRestSeconds(restVal), defaultName);
+                        if (justCompleted) startSessionIfNeeded(dayKey);
                       }}
                       style={{ width: 40, height: 40, borderRadius: "50%", textAlign: "center", border: `2px solid ${(log.reps && log.reps[si]) ? COLORS.gold : COLORS.line}`, background: (log.reps && log.reps[si]) ? "rgba(201,162,39,0.14)" : COLORS.surface2, color: COLORS.text, fontWeight: 800, fontSize: 14, fontFamily: "'Cairo', sans-serif" }} />
                     <span style={{ fontSize: 9, color: COLORS.mutedDim }}>{T("جولة", "Set")} {si + 1}</span>
