@@ -203,6 +203,30 @@ function getResumePoint(workoutLogs) {
   return { phase: 2, weekIdx: lastWeekIdx, dayIdx: PROGRAM.phase2.length - 1 };
 }
 
+function parseRestSeconds(restStr) {
+  if (!restStr) return 60;
+  const toSeconds = (t) => {
+    const m = String(t).trim().match(/^(\d+):(\d+)$/);
+    if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    const n = parseFloat(t);
+    return isNaN(n) ? null : Math.round(n * 60);
+  };
+  const secs = String(restStr).split("-").map(toSeconds).filter(n => n !== null);
+  if (secs.length === 0) return 60;
+  if (secs.length === 1) return secs[0];
+  return Math.round((secs[0] + secs[1]) / 2 / 5) * 5;
+}
+
+function formatClock(totalSeconds) {
+  const s = Math.max(0, Math.round(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = String(m).padStart(h > 0 ? 2 : 1, "0");
+  const ss = String(sec).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${mm}:${ss}`;
+}
+
 export default function App() {
   const [tab, setTab] = useState("home");
   const [loaded, setLoaded] = useState(false);
@@ -211,6 +235,8 @@ export default function App() {
   const [overrides, setOverrides] = useState({});
   const [lang, setLang] = useState("ar");
   const [exLang, setExLang] = useState("ar");
+  const [sessionStarts, setSessionStarts] = useState({});
+  const [sessionDurations, setSessionDurations] = useState({});
   const [editMode, setEditMode] = useState(false);
   const [phase, setPhase] = useState(1);
   const [weekIdx, setWeekIdx] = useState(0);
@@ -237,6 +263,8 @@ export default function App() {
           if (parsed.overrides) setOverrides(parsed.overrides);
           if (parsed.lang) setLang(parsed.lang);
           if (parsed.exLang) setExLang(parsed.exLang);
+          if (parsed.sessionStarts) setSessionStarts(parsed.sessionStarts);
+          if (parsed.sessionDurations) setSessionDurations(parsed.sessionDurations);
         }
       } catch (e) { /* nothing saved yet */ }
       const resume = getResumePoint(loadedWorkoutLogs);
@@ -254,7 +282,7 @@ export default function App() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang, exLang }), false);
+        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang, exLang, sessionStarts, sessionDurations }), false);
         setToast(T("تم الحفظ", "Saved"));
         setTimeout(() => setToast(null), 1100);
       } catch (e) {
@@ -263,7 +291,7 @@ export default function App() {
       }
     }, 700);
     return () => clearTimeout(saveTimer.current);
-  }, [workoutLogs, followup, overrides, lang, exLang, loaded]);
+  }, [workoutLogs, followup, overrides, lang, exLang, sessionStarts, sessionDurations, loaded]);
 
   const globalWeekNum = phase === 1 ? weekIdx + 1 : weekIdx + 7;
 
@@ -286,6 +314,14 @@ export default function App() {
 
   const setOverride = useCallback((id, value) => {
     setOverrides(prev => ({ ...prev, [id]: value }));
+  }, []);
+
+  const startSessionIfNeeded = useCallback((dayKey) => {
+    setSessionStarts(prev => (prev[dayKey] ? prev : { ...prev, [dayKey]: Date.now() }));
+  }, []);
+
+  const recordSessionDuration = useCallback((dayKey, seconds) => {
+    setSessionDurations(prev => ({ ...prev, [dayKey]: seconds }));
   }, []);
 
   if (!loaded) {
@@ -354,6 +390,8 @@ export default function App() {
             dayIdx={dayIdx} setDayIdx={setDayIdx} workoutLogs={workoutLogs} setExerciseLog={setExerciseLog}
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
             exLang={exLang} setExLang={setExLang}
+            sessionStarts={sessionStarts} sessionDurations={sessionDurations}
+            startSessionIfNeeded={startSessionIfNeeded} recordSessionDuration={recordSessionDuration}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} T={T} />}
@@ -468,7 +506,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, exLang, setExLang }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, exLang, setExLang, sessionStarts, sessionDurations, startSessionIfNeeded, recordSessionDuration }) {
   const tx = (ar, en) => (exLang === "ar" ? ar : en);
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
@@ -495,12 +533,45 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   }, [phase, weekIdx, dayIdx]);
 
   const dayKey = `p${phase}-w${weekIdx}-d${dayIdx}`;
+
+  const [rest, setRest] = useState(null);
+  const startRest = (seconds, label) => setRest({ endsAt: Date.now() + seconds * 1000, totalSeconds: seconds, label });
+
+  const sessionStart = sessionStarts[dayKey];
+  const sessionInProgress = !!sessionStart && doneCount < totalCount;
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!rest && !sessionInProgress) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [!!rest, sessionInProgress]);
+
+  const restRemaining = rest ? Math.max(0, Math.ceil((rest.endsAt - now) / 1000)) : 0;
+  const vibratedRef = useRef(false);
+  useEffect(() => {
+    if (!rest) { vibratedRef.current = false; return; }
+    if (restRemaining <= 0 && !vibratedRef.current) {
+      vibratedRef.current = true;
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      const t = setTimeout(() => setRest(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [rest, restRemaining]);
+
+  const sessionSeconds = doneCount === totalCount && totalCount > 0
+    ? sessionDurations[dayKey]
+    : sessionStart ? (now - sessionStart) / 1000 : null;
+
   const prevDayStateRef = useRef({ key: dayKey, doneCount });
   useEffect(() => {
     const prev = prevDayStateRef.current;
     const justCompleted = prev.key === dayKey && prev.doneCount < totalCount && doneCount === totalCount && totalCount > 0;
     prevDayStateRef.current = { key: dayKey, doneCount };
     if (!justCompleted) return;
+    const start = sessionStarts[dayKey];
+    if (start) recordSessionDuration(dayKey, Math.round((Date.now() - start) / 1000));
     const timer = setTimeout(() => {
       if (dayIdx < days.length - 1) {
         setDayIdx(dayIdx + 1);
@@ -591,13 +662,23 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           borderRadius: 12, padding: "10px 14px", marginBottom: 16,
         }}>
           {doneCount === totalCount ? (
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.green }}>✓ {T("خلصت كل تمارين اليوم!", "All exercises for today are done!")}</span>
+            <>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.green }}>✓ {T("خلصت كل تمارين اليوم!", "All exercises for today are done!")}</span>
+              {sessionSeconds != null && (
+                <span style={{ fontSize: 11, color: COLORS.green, flexShrink: 0, fontWeight: 700 }}>⏱ {formatClock(sessionSeconds)}</span>
+              )}
+            </>
           ) : (
             <>
               <span style={{ fontSize: 12, color: COLORS.muted }}>
                 {T("التالي", "Next up")}: <span style={{ color: COLORS.text, fontWeight: 700 }}>{nextName}</span>
               </span>
-              <span style={{ fontSize: 11, color: COLORS.mutedDim, flexShrink: 0 }}>{doneCount}/{totalCount}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                {sessionSeconds != null && (
+                  <span style={{ fontSize: 11, color: COLORS.gold, fontWeight: 700 }}>⏱ {formatClock(sessionSeconds)}</span>
+                )}
+                <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{doneCount}/{totalCount}</span>
+              </span>
             </>
           )}
         </div>
@@ -632,7 +713,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <button
-                    onClick={() => setExerciseLog(key, cur => ({ ...cur, done: !cur.done }))}
+                    onClick={() => { startSessionIfNeeded(dayKey); setExerciseLog(key, cur => ({ ...cur, done: !cur.done })); }}
                     style={{
                       width: 26, height: 26, borderRadius: "50%", flexShrink: 0, cursor: "pointer",
                       border: `1px solid ${log.done ? COLORS.green : COLORS.line}`,
@@ -682,11 +763,16 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                 {Array.from({ length: numSets }).map((_, si) => (
                   <div key={si} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     <input type="text" inputMode="numeric" placeholder="-" value={(log.reps && log.reps[si]) || ""}
-                      onChange={e => setExerciseLog(key, cur => {
-                        const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
-                        reps[si] = toEnNum(e.target.value);
-                        return { ...cur, reps };
-                      })}
+                      onChange={e => {
+                        const newVal = toEnNum(e.target.value);
+                        const wasEmpty = !(log.reps && log.reps[si]);
+                        setExerciseLog(key, cur => {
+                          const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
+                          reps[si] = newVal;
+                          return { ...cur, reps };
+                        });
+                        if (wasEmpty && newVal) startRest(parseRestSeconds(restVal), defaultName);
+                      }}
                       style={{ width: 40, height: 40, borderRadius: "50%", textAlign: "center", border: `2px solid ${(log.reps && log.reps[si]) ? COLORS.gold : COLORS.line}`, background: (log.reps && log.reps[si]) ? "rgba(201,162,39,0.14)" : COLORS.surface2, color: COLORS.text, fontWeight: 800, fontSize: 14, fontFamily: "'Cairo', sans-serif" }} />
                     <span style={{ fontSize: 9, color: COLORS.mutedDim }}>{T("جولة", "Set")} {si + 1}</span>
                   </div>
@@ -696,6 +782,32 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           );
         })}
       </div>
+
+      {rest && (
+        <div style={{
+          position: "fixed", bottom: "calc(70px + env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)",
+          width: "min(92%, 480px)", background: "rgba(24,25,27,0.97)", backdropFilter: "blur(10px)",
+          border: `1px solid ${restRemaining <= 0 ? COLORS.green : COLORS.gold}`, borderRadius: 16, padding: "10px 14px", zIndex: 45,
+          boxShadow: "0 6px 24px rgba(0,0,0,0.4)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, color: COLORS.muted }}>
+              {restRemaining <= 0 ? T("خلصت الراحة! ✅", "Rest done! ✅") : T("راحة", "Resting")} · <span style={{ color: COLORS.text, fontWeight: 700 }}>{rest.label}</span>
+            </span>
+            <button onClick={() => setRest(null)} style={{ background: "none", border: "none", color: COLORS.mutedDim, fontSize: 11, cursor: "pointer", fontWeight: 700 }}>{T("تخطي ✕", "Skip ✕")}</button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20, color: restRemaining <= 0 ? COLORS.green : COLORS.gold, minWidth: "3em" }}>{formatClock(restRemaining)}</span>
+            <div style={{ flex: 1, height: 6, borderRadius: 3, background: COLORS.surface3, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 3, background: restRemaining <= 0 ? COLORS.green : COLORS.gold,
+                width: `${Math.max(0, Math.min(100, (restRemaining / rest.totalSeconds) * 100))}%`,
+                transition: "width 1s linear",
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
