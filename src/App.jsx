@@ -136,6 +136,20 @@ function isDayDoneAt(workoutLogs, phase, weekIdx, dayIdx, exerciseCount) {
   return true;
 }
 
+function getDefaultWeight(workoutLogs, phase, weekIdx, dayIdx, exIdx) {
+  for (let w = weekIdx - 1; w >= 0; w--) {
+    const v = workoutLogs[`p${phase}-w${w}-d${dayIdx}-e${exIdx}`]?.weight;
+    if (v) return v;
+  }
+  if (phase === 2) {
+    for (let w = 5; w >= 0; w--) {
+      const v = workoutLogs[`p1-w${w}-d${dayIdx}-e${exIdx}`]?.weight;
+      if (v) return v;
+    }
+  }
+  return "";
+}
+
 function getResumePoint(workoutLogs) {
   const phases = [{ phase: 1, days: PROGRAM.phase1 }, { phase: 2, days: PROGRAM.phase2 }];
   for (const { phase, days } of phases) {
@@ -555,6 +569,9 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           const repsVal = overrides[repsId] ?? (spec.reps || "");
           const restVal = overrides[restId] ?? (spec.rest || "");
           const numSets = parseInt(toEnNum(setsVal), 10) || 0;
+          const defaultWeight = log.weight ? "" : getDefaultWeight(workoutLogs, phase, weekIdx, dayIdx, i);
+          const weightVal = log.weight || defaultWeight;
+          const isDefaultWeight = !log.weight && !!defaultWeight;
 
           return (
             <div key={key} ref={i === nextIdx ? nextExerciseRef : null} style={{ background: log.done ? "rgba(90,160,107,0.08)" : COLORS.surface, borderRadius: 16, padding: 14, border: `1px solid ${i === nextIdx ? COLORS.gold : (log.done ? COLORS.green : COLORS.line)}`, transition: "all 0.2s ease" }}>
@@ -600,9 +617,9 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
 
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
                 <label style={{ fontSize: 11, color: COLORS.muted, flexShrink: 0 }}>{T("الوزن", "Weight")}</label>
-                <input type="text" inputMode="decimal" placeholder="kg" value={log.weight}
+                <input type="text" inputMode="decimal" placeholder="kg" value={weightVal}
                   onChange={e => setExerciseLog(key, cur => ({ ...cur, weight: toEnNum(e.target.value) }))}
-                  style={{ width: 70, background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
+                  style={{ width: 70, background: COLORS.surface2, border: `1px solid ${isDefaultWeight ? COLORS.goldDim : COLORS.line}`, borderRadius: 8, padding: "6px 10px", color: isDefaultWeight ? COLORS.muted : COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 10.5, color: COLORS.mutedDim }}>{T("سجّل تكرارات كل جولة", "Log reps per set")}</span>
               </div>
