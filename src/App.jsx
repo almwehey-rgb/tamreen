@@ -71,11 +71,48 @@ function Ed({ id, fallback, editMode, overrides, setOverride, style, width, tag 
 }
 
 const TABS = [
-  { key: "home", ar: "الرئيسية", en: "Home", icon: "⌂" },
-  { key: "workout", ar: "التمرين", en: "Workout", icon: "▲" },
-  { key: "followup", ar: "المتابعة", en: "Progress", icon: "◐" },
-  { key: "menu", ar: "المنيو", en: "Menu", icon: "◈" },
+  { key: "home", ar: "الرئيسية", en: "Home", icon: "home" },
+  { key: "workout", ar: "التمرين", en: "Workout", icon: "workout" },
+  { key: "followup", ar: "المتابعة", en: "Progress", icon: "progress" },
+  { key: "menu", ar: "المنيو", en: "Menu", icon: "menu" },
 ];
+
+function NavIcon({ name, size = 22 }) {
+  const shapes = {
+    home: (
+      <path d="M12 3.5 3.5 11h2v8.5a1 1 0 0 0 1 1H10v-5.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V20.5h3.5a1 1 0 0 0 1-1V11h2z" />
+    ),
+    workout: (
+      <g>
+        <rect x="10.2" y="11" width="3.6" height="2" rx="0.8" />
+        <rect x="7.2" y="9" width="1.6" height="6" rx="0.8" />
+        <rect x="5" y="7.2" width="2" height="9.6" rx="1" />
+        <rect x="2.6" y="8.5" width="1.4" height="7" rx="0.7" />
+        <rect x="15.2" y="9" width="1.6" height="6" rx="0.8" />
+        <rect x="17" y="7.2" width="2" height="9.6" rx="1" />
+        <rect x="20" y="8.5" width="1.4" height="7" rx="0.7" />
+      </g>
+    ),
+    progress: (
+      <g>
+        <rect x="4" y="12.5" width="3.6" height="7.5" rx="1.2" />
+        <rect x="10.2" y="8" width="3.6" height="12" rx="1.2" />
+        <rect x="16.4" y="4" width="3.6" height="16" rx="1.2" />
+      </g>
+    ),
+    menu: (
+      <g>
+        <path d="M6.2 3a.7.7 0 0 1 .7.7v5.6h.7V3.7a.7.7 0 0 1 1.4 0v5.6h.7V3.7a.7.7 0 0 1 1.4 0v6.5a1.6 1.6 0 0 1-1.3 1.57V20.3a.9.9 0 0 1-1.8 0v-8.53A1.6 1.6 0 0 1 6.2 10.2V3.7a.7.7 0 0 1 0-.7z" />
+        <path d="M17.6 3a.9.9 0 0 1 .9.9v16.4a.9.9 0 0 1-1.8 0v-7.1c-1.4-.6-2.4-2.2-2.4-4.6C14.3 5.2 15.6 3 17.6 3Z" />
+      </g>
+    ),
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display: "block" }}>
+      {shapes[name]}
+    </svg>
+  );
+}
 
 function SectionTitle({ eyebrow, title, right }) {
   return (
@@ -323,7 +360,7 @@ export default function App() {
       <nav style={{ position: "fixed", bottom: 0, left: "50%", width: "min(100%, 520px)", transform: "translateX(-50%)", background: "rgba(24,25,27,0.96)", backdropFilter: "blur(10px)", borderTop: `1px solid ${COLORS.line}`, display: "flex", padding: "8px 6px calc(8px + env(safe-area-inset-bottom))", zIndex: 40 }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => openTab(t.key)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 2px", color: tab === t.key ? COLORS.gold : COLORS.mutedDim, transition: "color 160ms ease" }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{t.icon}</span>
+            <NavIcon name={t.icon} />
             <span style={{ fontSize: 11, fontWeight: 700 }}>{T(t.ar, t.en)}</span>
           </button>
         ))}
