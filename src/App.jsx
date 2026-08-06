@@ -128,6 +128,30 @@ function getLatestScheduleWeek(followup) {
   return null;
 }
 
+function isDayDoneAt(workoutLogs, phase, weekIdx, dayIdx, exerciseCount) {
+  if (exerciseCount === 0) return false;
+  for (let e = 0; e < exerciseCount; e++) {
+    if (!workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${e}`]?.done) return false;
+  }
+  return true;
+}
+
+function getResumePoint(workoutLogs) {
+  const phases = [{ phase: 1, days: PROGRAM.phase1 }, { phase: 2, days: PROGRAM.phase2 }];
+  for (const { phase, days } of phases) {
+    const weekCount = days[0]?.weeks?.length || 0;
+    for (let weekIdx = 0; weekIdx < weekCount; weekIdx++) {
+      for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+        if (!isDayDoneAt(workoutLogs, phase, weekIdx, dayIdx, days[dayIdx].exercises.length)) {
+          return { phase, weekIdx, dayIdx };
+        }
+      }
+    }
+  }
+  const lastWeekIdx = (PROGRAM.phase2[0]?.weeks?.length || 6) - 1;
+  return { phase: 2, weekIdx: lastWeekIdx, dayIdx: PROGRAM.phase2.length - 1 };
+}
+
 export default function App() {
   const [tab, setTab] = useState("home");
   const [loaded, setLoaded] = useState(false);
@@ -148,22 +172,25 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      let loadedWorkoutLogs = {};
       try {
         const res = await window.storage.get(STORAGE_KEY, false);
         if (res && res.value) {
           const parsed = JSON.parse(res.value);
-          if (parsed.workoutLogs) setWorkoutLogs(parsed.workoutLogs);
-          if (parsed.followup) {
-            const savedFollowup = { ...emptyFollowup(), ...parsed.followup };
-            const latestWeek = getLatestScheduleWeek(savedFollowup) || 1;
-            setFollowup(savedFollowup);
-            setPhase(latestWeek <= 6 ? 1 : 2);
-            setWeekIdx((latestWeek - 1) % 6);
+          if (parsed.workoutLogs) {
+            loadedWorkoutLogs = parsed.workoutLogs;
+            setWorkoutLogs(parsed.workoutLogs);
           }
+          if (parsed.followup) setFollowup({ ...emptyFollowup(), ...parsed.followup });
           if (parsed.overrides) setOverrides(parsed.overrides);
           if (parsed.lang) setLang(parsed.lang);
         }
       } catch (e) { /* nothing saved yet */ }
+      const resume = getResumePoint(loadedWorkoutLogs);
+      setPhase(resume.phase);
+      setWeekIdx(resume.weekIdx);
+      setDayIdx(resume.dayIdx);
+      setTab("workout");
       setLoaded(true);
     })();
   }, []);
@@ -189,15 +216,13 @@ export default function App() {
 
   const openTab = useCallback((nextTab) => {
     if (nextTab === "workout") {
-      const latestWeek = getLatestScheduleWeek(followup) || 1;
-      const nextPhase = latestWeek <= 6 ? 1 : 2;
-      const nextWeekIdx = (latestWeek - 1) % 6;
-      if (nextPhase !== phase || nextWeekIdx !== weekIdx) setDayIdx(0);
-      setPhase(nextPhase);
-      setWeekIdx(nextWeekIdx);
+      const resume = getResumePoint(workoutLogs);
+      setPhase(resume.phase);
+      setWeekIdx(resume.weekIdx);
+      setDayIdx(resume.dayIdx);
     }
     setTab(nextTab);
-  }, [followup, phase, weekIdx]);
+  }, [workoutLogs]);
 
   const setExerciseLog = useCallback((exKey, updater) => {
     setWorkoutLogs(prev => {
@@ -406,6 +431,13 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const nextIdx = day.exercises.findIndex((_, i) => !workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.done);
   const nextEx = nextIdx >= 0 ? day.exercises[nextIdx] : null;
   const nextName = nextEx ? T(nextEx.name, EX_TR[nextEx.name] || nextEx.name) : null;
+  const nextExerciseRef = useRef(null);
+
+  useEffect(() => {
+    if (nextExerciseRef.current) {
+      nextExerciseRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [phase, weekIdx, dayIdx]);
 
   return (
     <div style={{ padding: "16px 16px 8px" }}>
@@ -503,7 +535,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           const numSets = parseInt(toEnNum(setsVal), 10) || 0;
 
           return (
-            <div key={key} style={{ background: log.done ? "rgba(90,160,107,0.08)" : COLORS.surface, borderRadius: 16, padding: 14, border: `1px solid ${log.done ? COLORS.green : COLORS.line}`, transition: "all 0.2s ease" }}>
+            <div key={key} ref={i === nextIdx ? nextExerciseRef : null} style={{ background: log.done ? "rgba(90,160,107,0.08)" : COLORS.surface, borderRadius: 16, padding: 14, border: `1px solid ${i === nextIdx ? COLORS.gold : (log.done ? COLORS.green : COLORS.line)}`, transition: "all 0.2s ease" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <button
