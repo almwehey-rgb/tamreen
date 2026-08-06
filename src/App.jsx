@@ -210,6 +210,7 @@ export default function App() {
   const [followup, setFollowup] = useState(emptyFollowup());
   const [overrides, setOverrides] = useState({});
   const [lang, setLang] = useState("ar");
+  const [exLang, setExLang] = useState("ar");
   const [editMode, setEditMode] = useState(false);
   const [phase, setPhase] = useState(1);
   const [weekIdx, setWeekIdx] = useState(0);
@@ -235,6 +236,7 @@ export default function App() {
           if (parsed.followup) setFollowup({ ...emptyFollowup(), ...parsed.followup });
           if (parsed.overrides) setOverrides(parsed.overrides);
           if (parsed.lang) setLang(parsed.lang);
+          if (parsed.exLang) setExLang(parsed.exLang);
         }
       } catch (e) { /* nothing saved yet */ }
       const resume = getResumePoint(loadedWorkoutLogs);
@@ -252,7 +254,7 @@ export default function App() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang }), false);
+        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang, exLang }), false);
         setToast(T("تم الحفظ", "Saved"));
         setTimeout(() => setToast(null), 1100);
       } catch (e) {
@@ -261,7 +263,7 @@ export default function App() {
       }
     }, 700);
     return () => clearTimeout(saveTimer.current);
-  }, [workoutLogs, followup, overrides, lang, loaded]);
+  }, [workoutLogs, followup, overrides, lang, exLang, loaded]);
 
   const globalWeekNum = phase === 1 ? weekIdx + 1 : weekIdx + 7;
 
@@ -351,6 +353,7 @@ export default function App() {
             phase={phase} setPhase={setPhase} weekIdx={weekIdx} setWeekIdx={setWeekIdx}
             dayIdx={dayIdx} setDayIdx={setDayIdx} workoutLogs={workoutLogs} setExerciseLog={setExerciseLog}
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
+            exLang={exLang} setExLang={setExLang}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} T={T} />}
@@ -465,7 +468,8 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, exLang, setExLang }) {
+  const tx = (ar, en) => (exLang === "ar" ? ar : en);
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
   const week = day.weeks[weekIdx];
@@ -481,7 +485,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const totalCount = day.exercises.length;
   const nextIdx = day.exercises.findIndex((_, i) => !workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.done);
   const nextEx = nextIdx >= 0 ? day.exercises[nextIdx] : null;
-  const nextName = nextEx ? T(nextEx.name, EX_TR[nextEx.name] || nextEx.name) : null;
+  const nextName = nextEx ? tx(nextEx.name, EX_TR[nextEx.name] || nextEx.name) : null;
   const nextExerciseRef = useRef(null);
 
   useEffect(() => {
@@ -517,6 +521,19 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
       <SectionTitle
         eyebrow={`${T("المرحلة", "Phase")} ${phase === 1 ? T("الأولى", "1") : T("الثانية", "2")} · ${T("أسبوع", "Week")} ${globalWeekNum}`}
         title={<Ed id={dayTitleId} fallback={defaultTitle} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20 }} width="14em" />}
+        right={
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+            <span style={{ fontSize: 9.5, color: COLORS.mutedDim }}>{T("لغة أسماء التمارين", "Exercise names")}</span>
+            <div style={{ display: "flex", background: COLORS.surface, borderRadius: 8, border: `1px solid ${COLORS.line}`, overflow: "hidden" }}>
+              {["ar", "en"].map(l => (
+                <button key={l} onClick={() => setExLang(l)} style={{
+                  padding: "3px 9px", border: "none", cursor: "pointer", fontWeight: 800, fontSize: 11,
+                  background: exLang === l ? COLORS.gold : "transparent", color: exLang === l ? "#1a1508" : COLORS.mutedDim,
+                }}>{l === "ar" ? "AR" : "EN"}</button>
+              ))}
+            </div>
+          </div>
+        }
       />
 
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -598,7 +615,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           const key = `p${phase}-w${weekIdx}-d${dayIdx}-e${i}`;
           const log = workoutLogs[key] || { weight: "", reps: [] };
           const nameId = `exName.${phase}.${dayIdx}.${i}`;
-          const defaultName = T(ex.name, EX_TR[ex.name] || ex.name);
+          const defaultName = tx(ex.name, EX_TR[ex.name] || ex.name);
           const setsId = `exSpec.${phase}.${weekIdx}.${dayIdx}.${i}.sets`;
           const repsId = `exSpec.${phase}.${weekIdx}.${dayIdx}.${i}.reps`;
           const restId = `exSpec.${phase}.${weekIdx}.${dayIdx}.${i}.rest`;
