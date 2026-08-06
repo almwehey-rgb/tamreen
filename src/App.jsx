@@ -324,6 +324,18 @@ export default function App() {
     setSessionDurations(prev => ({ ...prev, [dayKey]: seconds }));
   }, []);
 
+  const resetDay = useCallback((p, w, d) => {
+    const prefix = `p${p}-w${w}-d${d}-e`;
+    setWorkoutLogs(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => { if (k.startsWith(prefix)) delete next[k]; });
+      return next;
+    });
+    const dayKey = `p${p}-w${w}-d${d}`;
+    setSessionStarts(prev => { const next = { ...prev }; delete next[dayKey]; return next; });
+    setSessionDurations(prev => { const next = { ...prev }; delete next[dayKey]; return next; });
+  }, []);
+
   if (!loaded) {
     return (
       <div style={{ background: COLORS.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -392,6 +404,7 @@ export default function App() {
             exLang={exLang} setExLang={setExLang}
             sessionStarts={sessionStarts} sessionDurations={sessionDurations}
             startSessionIfNeeded={startSessionIfNeeded} recordSessionDuration={recordSessionDuration}
+            resetDay={resetDay}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} T={T} />}
@@ -506,7 +519,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, exLang, setExLang, sessionStarts, sessionDurations, startSessionIfNeeded, recordSessionDuration }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, exLang, setExLang, sessionStarts, sessionDurations, startSessionIfNeeded, recordSessionDuration, resetDay }) {
   const tx = (ar, en) => (exLang === "ar" ? ar : en);
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
@@ -653,6 +666,19 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           );
         })}
       </div>
+
+      {(doneCount > 0 || day.exercises.some((_, i) => workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.weight || workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.reps?.some(r => r))) && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+          <button
+            onClick={() => {
+              if (window.confirm(T("متأكد تبي تصفّر بيانات هذا اليوم؟ (الأوزان والتكرارات والوقت)", "Reset this day's data? (weights, reps, and time)"))) {
+                resetDay(phase, weekIdx, dayIdx);
+              }
+            }}
+            style={{ background: "none", border: "none", color: COLORS.mutedDim, fontSize: 11, cursor: "pointer", fontWeight: 700, textDecoration: "underline" }}
+          >↺ {T("إعادة تعيين اليوم", "Reset day")}</button>
+        </div>
+      )}
 
       {totalCount > 0 && (
         <div style={{
