@@ -114,6 +114,42 @@ function NavIcon({ name, size = 22 }) {
   );
 }
 
+function MealIcon({ name, size = 20 }) {
+  const shapes = {
+    breakfast: (
+      <g>
+        <path d="M5 8h11v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z" />
+        <path d="M16 9.5h1.3a2.3 2.3 0 0 1 0 4.6H16v-1.6h1.3a.7.7 0 0 0 0-1.4H16Z" />
+      </g>
+    ),
+    lunch: (
+      <g>
+        <path d="M3 10.8 12 5l9 5.8v1.2H3Z" />
+        <rect x="3" y="12.8" width="18" height="2" rx="1" />
+        <path d="M4 16.3h16l-1.6 3.1a2 2 0 0 1-1.8 1.1H7.4a2 2 0 0 1-1.8-1.1Z" />
+      </g>
+    ),
+    dinner: (
+      <g>
+        <path d="M3 15.3a9 6 0 0 1 18 0v.5H3Z" />
+        <rect x="11" y="4" width="2" height="3.2" rx="1" />
+        <rect x="2.3" y="16.8" width="19.4" height="2" rx="1" />
+      </g>
+    ),
+    snacks: (
+      <g>
+        <rect x="8.3" y="5" width="7.4" height="4" rx="1" />
+        <path d="M6.5 9h11l-.9 10.3a2 2 0 0 1-2 1.7H9.4a2 2 0 0 1-2-1.7Z" />
+      </g>
+    ),
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display: "block" }}>
+      {shapes[name]}
+    </svg>
+  );
+}
+
 function SectionTitle({ eyebrow, title, right }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 14 }}>
@@ -235,10 +271,31 @@ function parseTargetRange(str) {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function todayKey() {
-  const d = new Date();
+function dateKeyOf(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+function todayKey() {
+  return dateKeyOf(new Date());
+}
+
+function currentWeekDates() {
+  const today = new Date();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - today.getDay());
+  return Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    return d;
+  });
+}
+
+const MEAL_TYPES = [
+  { key: "breakfast", ar: "فطور", en: "Breakfast" },
+  { key: "lunch", ar: "غداء", en: "Lunch" },
+  { key: "dinner", ar: "عشاء", en: "Dinner" },
+  { key: "snacks", ar: "سناكات", en: "Snacks" },
+];
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -351,14 +408,14 @@ export default function App() {
     setSessionDurations(prev => { const next = { ...prev }; delete next[dayKey]; return next; });
   }, []);
 
-  const addFoodItem = useCallback((item) => {
-    const key = todayKey();
+  const addFoodItem = useCallback((item, dateKey) => {
+    const key = dateKey || todayKey();
     const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ...item };
     setFoodLog(prev => ({ ...prev, [key]: [...(prev[key] || []), entry] }));
   }, []);
 
-  const removeFoodItem = useCallback((id) => {
-    const key = todayKey();
+  const removeFoodItem = useCallback((id, dateKey) => {
+    const key = dateKey || todayKey();
     setFoodLog(prev => ({ ...prev, [key]: (prev[key] || []).filter(e => e.id !== id) }));
   }, []);
 
@@ -961,11 +1018,7 @@ function FollowupTab({ followup, setFollowup, T }) {
 }
 
 /* ---------------- MENU ---------------- */
-function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides }) {
-  const p = META.profile;
-  const key = todayKey();
-  const entries = foodLog[key] || [];
-  const [showForm, setShowForm] = useState(false);
+function AddFoodForm({ T, onAdd }) {
   const [form, setForm] = useState({ name: "", cal: "", protein: "", netCarb: "", fat: "", fiber: "" });
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -1013,6 +1066,80 @@ function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides 
     setSearchState("idle");
   };
 
+  const submitForm = () => {
+    if (!form.name.trim() || !form.cal) return;
+    onAdd({
+      name: form.name.trim(),
+      cal: Number(toEnNum(form.cal)) || 0,
+      protein: Number(toEnNum(form.protein)) || 0,
+      netCarb: Number(toEnNum(form.netCarb)) || 0,
+      fat: Number(toEnNum(form.fat)) || 0,
+      fiber: Number(toEnNum(form.fiber)) || 0,
+    });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, background: COLORS.surface3, borderRadius: 12, padding: 10, marginTop: 8 }}>
+      <div>
+        <input placeholder={T("🔍 ابحث عن أكلة (يعبي القيم تلقائياً)", "🔍 Search for a food (auto-fills values)")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          style={{ width: "100%", background: COLORS.surface2, border: `1px solid ${COLORS.goldDim}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
+        {searchState === "loading" && <div style={{ fontSize: 11, color: COLORS.mutedDim, marginTop: 6 }}>{T("جاري البحث...", "Searching...")}</div>}
+        {searchState === "error" && <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 6 }}>{T("البحث غير متاح حالياً، جرّب لاحقاً أو أدخل القيم يدوياً", "Search unavailable right now — try again later or enter values manually")}</div>}
+        {searchState === "done" && searchResults.length === 0 && <div style={{ fontSize: 11, color: COLORS.mutedDim, marginTop: 6 }}>{T("ما فيه نتائج", "No results")}</div>}
+        {searchResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, maxHeight: 200, overflowY: "auto" }}>
+            {searchResults.map((p, i) => (
+              <button key={i} onClick={() => pickSearchResult(p)} style={{
+                textAlign: "start", background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", cursor: "pointer",
+              }}>
+                <div style={{ fontSize: 12.5, color: COLORS.text, fontWeight: 700 }}>{p.product_name}{p.brands ? ` (${p.brands})` : ""}</div>
+                <div style={{ fontSize: 10.5, color: COLORS.mutedDim, marginTop: 2 }}>{Math.round(p.nutriments["energy-kcal_100g"])} {T("سعرة / 100غم", "kcal / 100g")}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <input placeholder={T("اسم الصنف", "Item name")} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+        style={{ background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+        {[["cal", T("سعرة", "kcal")], ["protein", T("بروتين", "protein")], ["netCarb", T("كارب", "carb")], ["fat", T("دهون", "fat")], ["fiber", T("ألياف", "fiber")]].map(([fk, lbl]) => (
+          <div key={fk}>
+            <input type="text" inputMode="decimal" placeholder="0" value={form[fk]} onChange={e => setForm(f => ({ ...f, [fk]: e.target.value }))}
+              style={{ width: "100%", background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 4px", color: COLORS.text, fontSize: 12, textAlign: "center", fontFamily: "inherit" }} />
+            <div style={{ fontSize: 8.5, color: COLORS.mutedDim, textAlign: "center", marginTop: 2 }}>{lbl}</div>
+          </div>
+        ))}
+      </div>
+      <button onClick={submitForm} style={{ background: COLORS.gold, color: "#1a1508", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>{T("إضافة", "Add")}</button>
+    </div>
+  );
+}
+
+function MacroBar({ label, value, target, color }) {
+  const pct = target ? Math.max(0, Math.min(100, (value / target) * 100)) : 0;
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: COLORS.text, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 11, color: COLORS.mutedDim, marginBottom: 5 }}>
+        <span style={{ color: COLORS.text, fontWeight: 700 }}>{Math.round(value)}</span>{target != null ? ` / ${Math.round(target)}` : ""}
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: COLORS.surface3, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.3s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides }) {
+  const p = META.profile;
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const selectedKey = dateKeyOf(selectedDate);
+  const todaysKey = todayKey();
+  const entries = foodLog[selectedKey] || [];
+  const [openMealType, setOpenMealType] = useState(null);
+  const weekDates = useMemo(() => currentWeekDates(), []);
+  const dayLetters = [T("ح", "S"), T("ن", "M"), T("ث", "T"), T("ر", "W"), T("خ", "T"), T("ج", "F"), T("س", "S")];
+
   const totals = entries.reduce((acc, e) => ({
     cal: acc.cal + (Number(e.cal) || 0),
     protein: acc.protein + (Number(e.protein) || 0),
@@ -1025,104 +1152,102 @@ function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides 
     cal: parseTargetRange(overrides["profile.dailyCalories"] ?? p.dailyCalories),
     protein: parseTargetRange(overrides["profile.protein"] ?? p.protein),
     netCarb: parseTargetRange(overrides["profile.carbs"] ?? p.carbs),
+    fat: parseTargetRange(overrides["profile.fat"] ?? p.fat),
     fiber: parseTargetRange(overrides["profile.fiber"] ?? p.fiber),
   };
 
-  const stats = [
-    ["cal", T("سعرات", "Calories"), COLORS.gold],
-    ["protein", T("بروتين", "Protein"), null],
-    ["netCarb", T("كارب", "Carbs"), COLORS.blue],
-    ["fiber", T("ألياف", "Fiber"), COLORS.green],
-  ];
-
-  const submitForm = () => {
-    if (!form.name.trim() || !form.cal) return;
-    addFoodItem({
-      name: form.name.trim(),
-      cal: Number(toEnNum(form.cal)) || 0,
-      protein: Number(toEnNum(form.protein)) || 0,
-      netCarb: Number(toEnNum(form.netCarb)) || 0,
-      fat: Number(toEnNum(form.fat)) || 0,
-      fiber: Number(toEnNum(form.fiber)) || 0,
-    });
-    setForm({ name: "", cal: "", protein: "", netCarb: "", fat: "", fiber: "" });
-    setShowForm(false);
-  };
+  const calTarget = targets.cal || 0;
+  const calRemaining = Math.round(calTarget - totals.cal);
+  const calPct = calTarget ? Math.max(0, Math.min(100, (totals.cal / calTarget) * 100)) : 0;
 
   return (
     <div style={{ background: COLORS.surface, borderRadius: 16, padding: 16, border: `1px solid ${COLORS.line}`, marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.gold }}>{T("سعراتك اليوم", "Today's calories")}</div>
-        <button onClick={() => setShowForm(s => !s)} style={{ background: "none", border: `1px solid ${COLORS.goldDim}`, color: COLORS.gold, borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-          {showForm ? T("إلغاء", "Cancel") : `+ ${T("إضافة صنف", "Add item")}`}
-        </button>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: showForm ? 14 : (entries.length ? 14 : 0) }}>
-        {stats.map(([k, label, color]) => {
-          const target = targets[k];
-          const remaining = target != null ? Math.round(target - totals[k]) : null;
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 16 }}>
+        {weekDates.map((d, i) => {
+          const dKey = dateKeyOf(d);
+          const isSelected = dKey === selectedKey;
+          const isToday = dKey === todaysKey;
           return (
-            <div key={k} style={{ background: COLORS.surface2, borderRadius: 12, padding: "8px 4px", textAlign: "center" }}>
-              <div style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15, color: color || COLORS.text }}>{Math.round(totals[k])}</div>
-              <div style={{ fontSize: 9, color: COLORS.mutedDim, marginTop: 1 }}>
-                {target != null ? `${T("الباقي", "left")} ${remaining >= 0 ? remaining : 0}` : label}
-              </div>
-              <div style={{ fontSize: 8.5, color: COLORS.mutedDim }}>{label}</div>
-            </div>
+            <button key={i} onClick={() => setSelectedDate(d)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "2px 0" }}>
+              <span style={{ fontSize: 10, color: COLORS.mutedDim, fontWeight: 700 }}>{dayLetters[i]}</span>
+              <span style={{
+                width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                background: isSelected ? COLORS.gold : "transparent",
+                color: isSelected ? "#1a1508" : (isToday ? COLORS.gold : COLORS.muted),
+                border: !isSelected && isToday ? `1.5px dashed ${COLORS.gold}` : "none",
+              }}>{d.getDate()}</span>
+            </button>
           );
         })}
       </div>
 
-      {showForm && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: entries.length ? 14 : 0, background: COLORS.surface2, borderRadius: 12, padding: 10 }}>
+      <div style={{ background: COLORS.surface2, borderRadius: 14, padding: 14, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 6 }}>{T("السعرات", "Calories")}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
           <div>
-            <input placeholder={T("🔍 ابحث عن أكلة (يعبي القيم تلقائياً)", "🔍 Search for a food (auto-fills values)")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              style={{ width: "100%", background: COLORS.surface3, border: `1px solid ${COLORS.goldDim}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
-            {searchState === "loading" && <div style={{ fontSize: 11, color: COLORS.mutedDim, marginTop: 6 }}>{T("جاري البحث...", "Searching...")}</div>}
-            {searchState === "error" && <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 6 }}>{T("البحث غير متاح حالياً، جرّب لاحقاً أو أدخل القيم يدوياً", "Search unavailable right now — try again later or enter values manually")}</div>}
-            {searchState === "done" && searchResults.length === 0 && <div style={{ fontSize: 11, color: COLORS.mutedDim, marginTop: 6 }}>{T("ما فيه نتائج", "No results")}</div>}
-            {searchResults.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, maxHeight: 200, overflowY: "auto" }}>
-                {searchResults.map((p, i) => (
-                  <button key={i} onClick={() => pickSearchResult(p)} style={{
-                    textAlign: "start", background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", cursor: "pointer",
-                  }}>
-                    <div style={{ fontSize: 12.5, color: COLORS.text, fontWeight: 700 }}>{p.product_name}{p.brands ? ` (${p.brands})` : ""}</div>
-                    <div style={{ fontSize: 10.5, color: COLORS.mutedDim, marginTop: 2 }}>{Math.round(p.nutriments["energy-kcal_100g"])} {T("سعرة / 100غم", "kcal / 100g")}</div>
-                  </button>
-                ))}
-              </div>
-            )}
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 22, color: COLORS.text }}>{Math.round(totals.cal)}</span>
+            <span style={{ fontSize: 12, color: COLORS.mutedDim }}> / {Math.round(calTarget)} 🔥</span>
           </div>
-          <input placeholder={T("اسم الصنف", "Item name")} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            style={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
-            {[["cal", T("سعرة", "kcal")], ["protein", T("بروتين", "protein")], ["netCarb", T("كارب", "carb")], ["fat", T("دهون", "fat")], ["fiber", T("ألياف", "fiber")]].map(([fk, lbl]) => (
-              <div key={fk}>
-                <input type="text" inputMode="decimal" placeholder="0" value={form[fk]} onChange={e => setForm(f => ({ ...f, [fk]: e.target.value }))}
-                  style={{ width: "100%", background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 4px", color: COLORS.text, fontSize: 12, textAlign: "center", fontFamily: "inherit" }} />
-                <div style={{ fontSize: 8.5, color: COLORS.mutedDim, textAlign: "center", marginTop: 2 }}>{lbl}</div>
-              </div>
-            ))}
+          <div style={{ textAlign: "end" }}>
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 16, color: calRemaining >= 0 ? COLORS.gold : COLORS.rust }}>{Math.abs(calRemaining)}</span>
+            <span style={{ fontSize: 11, color: COLORS.mutedDim }}> {calRemaining >= 0 ? T("متبقي", "left") : T("زيادة", "over")}</span>
           </div>
-          <button onClick={submitForm} style={{ background: COLORS.gold, color: "#1a1508", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>{T("إضافة", "Add")}</button>
         </div>
-      )}
+        <div style={{ height: 8, borderRadius: 4, background: COLORS.surface3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${calPct}%`, background: COLORS.gold, borderRadius: 4, transition: "width 0.3s ease" }} />
+        </div>
+      </div>
 
-      {entries.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {entries.map(e => (
-            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "6px 8px", background: COLORS.surface2, borderRadius: 8 }}>
-              <span style={{ color: COLORS.text }}>{e.name}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: COLORS.gold, fontWeight: 700 }}>{Math.round(e.cal)} {T("سعرة", "kcal")}</span>
-                <button onClick={() => removeFoodItem(e.id)} style={{ background: "none", border: "none", color: COLORS.mutedDim, cursor: "pointer", fontSize: 13 }}>✕</button>
+      <div style={{ background: COLORS.surface2, borderRadius: 14, padding: 14, marginBottom: 18, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <MacroBar label={T("كارب", "Carbs")} value={totals.netCarb} target={targets.netCarb} color={COLORS.blue} />
+        <MacroBar label={T("دهون", "Fat")} value={totals.fat} target={targets.fat} color={COLORS.rust} />
+        <MacroBar label={T("بروتين", "Protein")} value={totals.protein} target={targets.protein} color={COLORS.gold} />
+        <MacroBar label={T("ألياف", "Fiber")} value={totals.fiber} target={targets.fiber} color={COLORS.green} />
+      </div>
+
+      <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.text, marginBottom: 10 }}>{T("وجباتك", "Meals")}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {MEAL_TYPES.map(mt => {
+          const items = entries.filter(e => (e.mealType || "snacks") === mt.key);
+          const mealCal = items.reduce((s, e) => s + (Number(e.cal) || 0), 0);
+          const isOpen = openMealType === mt.key;
+          return (
+            <div key={mt.key} style={{ background: COLORS.surface2, borderRadius: 12, padding: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ color: COLORS.gold }}><MealIcon name={mt.key} /></span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>{T(mt.ar, mt.en)}</div>
+                    {items.length > 0 && <div style={{ fontSize: 10.5, color: COLORS.mutedDim }}>{Math.round(mealCal)} {T("سعرة", "kcal")}</div>}
+                  </div>
+                </div>
+                <button onClick={() => setOpenMealType(isOpen ? null : mt.key)} style={{
+                  background: isOpen ? COLORS.surface3 : "none", border: `1px solid ${COLORS.goldDim}`, color: COLORS.gold, borderRadius: 20, padding: "5px 14px", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                }}>{isOpen ? T("إغلاق", "Close") : T("تسجيل", "Log")}</button>
               </div>
+
+              {items.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
+                  {items.map(e => (
+                    <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "6px 8px", background: COLORS.surface3, borderRadius: 8 }}>
+                      <span style={{ color: COLORS.text }}>{e.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: COLORS.gold, fontWeight: 700 }}>{Math.round(e.cal)}</span>
+                        <button onClick={() => removeFoodItem(e.id, selectedKey)} style={{ background: "none", border: "none", color: COLORS.mutedDim, cursor: "pointer", fontSize: 13 }}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {isOpen && (
+                <AddFoodForm T={T} onAdd={(item) => { addFoodItem({ ...item, mealType: mt.key }, selectedKey); setOpenMealType(null); }} />
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
