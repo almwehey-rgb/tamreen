@@ -227,6 +227,19 @@ function formatClock(totalSeconds) {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${mm}:${ss}`;
 }
 
+function parseTargetRange(str) {
+  if (!str) return null;
+  const nums = String(str).match(/[\d.]+/g);
+  if (!nums || nums.length === 0) return null;
+  const values = nums.map(Number);
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function App() {
   const [tab, setTab] = useState("home");
   const [loaded, setLoaded] = useState(false);
@@ -237,6 +250,7 @@ export default function App() {
   const [exLang, setExLang] = useState("ar");
   const [sessionStarts, setSessionStarts] = useState({});
   const [sessionDurations, setSessionDurations] = useState({});
+  const [foodLog, setFoodLog] = useState({});
   const [editMode, setEditMode] = useState(false);
   const [phase, setPhase] = useState(1);
   const [weekIdx, setWeekIdx] = useState(0);
@@ -265,6 +279,7 @@ export default function App() {
           if (parsed.exLang) setExLang(parsed.exLang);
           if (parsed.sessionStarts) setSessionStarts(parsed.sessionStarts);
           if (parsed.sessionDurations) setSessionDurations(parsed.sessionDurations);
+          if (parsed.foodLog) setFoodLog(parsed.foodLog);
         }
       } catch (e) { /* nothing saved yet */ }
       const resume = getResumePoint(loadedWorkoutLogs);
@@ -282,7 +297,7 @@ export default function App() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang, exLang, sessionStarts, sessionDurations }), false);
+        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang, exLang, sessionStarts, sessionDurations, foodLog }), false);
         setToast(T("تم الحفظ", "Saved"));
         setTimeout(() => setToast(null), 1100);
       } catch (e) {
@@ -291,7 +306,7 @@ export default function App() {
       }
     }, 700);
     return () => clearTimeout(saveTimer.current);
-  }, [workoutLogs, followup, overrides, lang, exLang, sessionStarts, sessionDurations, loaded]);
+  }, [workoutLogs, followup, overrides, lang, exLang, sessionStarts, sessionDurations, foodLog, loaded]);
 
   const globalWeekNum = phase === 1 ? weekIdx + 1 : weekIdx + 7;
 
@@ -334,6 +349,17 @@ export default function App() {
     const dayKey = `p${p}-w${w}-d${d}`;
     setSessionStarts(prev => { const next = { ...prev }; delete next[dayKey]; return next; });
     setSessionDurations(prev => { const next = { ...prev }; delete next[dayKey]; return next; });
+  }, []);
+
+  const addFoodItem = useCallback((item) => {
+    const key = todayKey();
+    const entry = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ...item };
+    setFoodLog(prev => ({ ...prev, [key]: [...(prev[key] || []), entry] }));
+  }, []);
+
+  const removeFoodItem = useCallback((id) => {
+    const key = todayKey();
+    setFoodLog(prev => ({ ...prev, [key]: (prev[key] || []).filter(e => e.id !== id) }));
   }, []);
 
   if (!loaded) {
@@ -408,7 +434,12 @@ export default function App() {
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} T={T} />}
-        {tab === "menu" && <MenuTab mealCat={mealCat} setMealCat={setMealCat} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride} />}
+        {tab === "menu" && (
+          <MenuTab
+            mealCat={mealCat} setMealCat={setMealCat} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
+            foodLog={foodLog} addFoodItem={addFoodItem} removeFoodItem={removeFoodItem}
+          />
+        )}
       </ErrorBoundary>
 
       <nav style={{ position: "fixed", bottom: 0, left: "50%", width: "min(100%, 520px)", transform: "translateX(-50%)", background: "rgba(24,25,27,0.96)", backdropFilter: "blur(10px)", borderTop: `1px solid ${COLORS.line}`, display: "flex", padding: "8px 6px calc(8px + env(safe-area-inset-bottom))", zIndex: 40 }}>
@@ -930,7 +961,109 @@ function FollowupTab({ followup, setFollowup, T }) {
 }
 
 /* ---------------- MENU ---------------- */
-function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride }) {
+function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides }) {
+  const p = META.profile;
+  const key = todayKey();
+  const entries = foodLog[key] || [];
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", cal: "", protein: "", netCarb: "", fat: "", fiber: "" });
+
+  const totals = entries.reduce((acc, e) => ({
+    cal: acc.cal + (Number(e.cal) || 0),
+    protein: acc.protein + (Number(e.protein) || 0),
+    netCarb: acc.netCarb + (Number(e.netCarb) || 0),
+    fat: acc.fat + (Number(e.fat) || 0),
+    fiber: acc.fiber + (Number(e.fiber) || 0),
+  }), { cal: 0, protein: 0, netCarb: 0, fat: 0, fiber: 0 });
+
+  const targets = {
+    cal: parseTargetRange(overrides["profile.dailyCalories"] ?? p.dailyCalories),
+    protein: parseTargetRange(overrides["profile.protein"] ?? p.protein),
+    netCarb: parseTargetRange(overrides["profile.carbs"] ?? p.carbs),
+    fiber: parseTargetRange(overrides["profile.fiber"] ?? p.fiber),
+  };
+
+  const stats = [
+    ["cal", T("سعرات", "Calories"), COLORS.gold],
+    ["protein", T("بروتين", "Protein"), null],
+    ["netCarb", T("كارب", "Carbs"), COLORS.blue],
+    ["fiber", T("ألياف", "Fiber"), COLORS.green],
+  ];
+
+  const submitForm = () => {
+    if (!form.name.trim() || !form.cal) return;
+    addFoodItem({
+      name: form.name.trim(),
+      cal: Number(toEnNum(form.cal)) || 0,
+      protein: Number(toEnNum(form.protein)) || 0,
+      netCarb: Number(toEnNum(form.netCarb)) || 0,
+      fat: Number(toEnNum(form.fat)) || 0,
+      fiber: Number(toEnNum(form.fiber)) || 0,
+    });
+    setForm({ name: "", cal: "", protein: "", netCarb: "", fat: "", fiber: "" });
+    setShowForm(false);
+  };
+
+  return (
+    <div style={{ background: COLORS.surface, borderRadius: 16, padding: 16, border: `1px solid ${COLORS.line}`, marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.gold }}>{T("سعراتك اليوم", "Today's calories")}</div>
+        <button onClick={() => setShowForm(s => !s)} style={{ background: "none", border: `1px solid ${COLORS.goldDim}`, color: COLORS.gold, borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+          {showForm ? T("إلغاء", "Cancel") : `+ ${T("إضافة صنف", "Add item")}`}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: showForm ? 14 : (entries.length ? 14 : 0) }}>
+        {stats.map(([k, label, color]) => {
+          const target = targets[k];
+          const remaining = target != null ? Math.round(target - totals[k]) : null;
+          return (
+            <div key={k} style={{ background: COLORS.surface2, borderRadius: 12, padding: "8px 4px", textAlign: "center" }}>
+              <div style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 15, color: color || COLORS.text }}>{Math.round(totals[k])}</div>
+              <div style={{ fontSize: 9, color: COLORS.mutedDim, marginTop: 1 }}>
+                {target != null ? `${T("الباقي", "left")} ${remaining >= 0 ? remaining : 0}` : label}
+              </div>
+              <div style={{ fontSize: 8.5, color: COLORS.mutedDim }}>{label}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showForm && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: entries.length ? 14 : 0, background: COLORS.surface2, borderRadius: 12, padding: 10 }}>
+          <input placeholder={T("اسم الصنف", "Item name")} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            style={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+            {[["cal", T("سعرة", "kcal")], ["protein", T("بروتين", "protein")], ["netCarb", T("كارب", "carb")], ["fat", T("دهون", "fat")], ["fiber", T("ألياف", "fiber")]].map(([fk, lbl]) => (
+              <div key={fk}>
+                <input type="text" inputMode="decimal" placeholder="0" value={form[fk]} onChange={e => setForm(f => ({ ...f, [fk]: e.target.value }))}
+                  style={{ width: "100%", background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 4px", color: COLORS.text, fontSize: 12, textAlign: "center", fontFamily: "inherit" }} />
+                <div style={{ fontSize: 8.5, color: COLORS.mutedDim, textAlign: "center", marginTop: 2 }}>{lbl}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={submitForm} style={{ background: COLORS.gold, color: "#1a1508", border: "none", borderRadius: 8, padding: "8px 0", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>{T("إضافة", "Add")}</button>
+        </div>
+      )}
+
+      {entries.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {entries.map(e => (
+            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, padding: "6px 8px", background: COLORS.surface2, borderRadius: 8 }}>
+              <span style={{ color: COLORS.text }}>{e.name}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: COLORS.gold, fontWeight: 700 }}>{Math.round(e.cal)} {T("سعرة", "kcal")}</span>
+                <button onClick={() => removeFoodItem(e.id)} style={{ background: "none", border: "none", color: COLORS.mutedDim, cursor: "pointer", fontSize: 13 }}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foodLog, addFoodItem, removeFoodItem }) {
   const cat = META.meals[mealCat] || META.meals[0];
   const catNameId = `mealCat.${mealCat}`;
   const catDefault = T(cat.category, MEAL_CAT_TR[cat.category] || cat.category);
@@ -938,6 +1071,8 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride }) {
   return (
     <div style={{ padding: "16px 16px 8px" }}>
       <SectionTitle eyebrow={T("خيارات الوجبات", "Meal options")} title={T("منيو الأكل", "Food Menu")} />
+
+      <DailyCaloriesCard T={T} foodLog={foodLog} addFoodItem={addFoodItem} removeFoodItem={removeFoodItem} overrides={overrides} />
 
       <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
         {META.meals.map((m, ci) => {
@@ -975,11 +1110,24 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride }) {
           ];
           return (
             <div key={i} style={{ background: COLORS.surface, borderRadius: 16, padding: 16, border: `1px solid ${COLORS.line}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
                 <Ed id={`${base}.name`} fallback={nameVal} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontWeight: 700, fontSize: 14.5, flex: 1 }} width="16em" />
-                {item.video && (
-                  <a href={item.video} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: COLORS.gold, border: `1px solid ${COLORS.goldDim}`, borderRadius: 8, padding: "4px 8px", textDecoration: "none", flexShrink: 0, fontWeight: 700, marginRight: 8 }}>▶ {T("الطبخ", "Recipe")}</a>
-                )}
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {item.video && (
+                    <a href={item.video} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: COLORS.gold, border: `1px solid ${COLORS.goldDim}`, borderRadius: 8, padding: "4px 8px", textDecoration: "none", fontWeight: 700 }}>▶ {T("الطبخ", "Recipe")}</a>
+                  )}
+                  <button
+                    onClick={() => addFoodItem({
+                      name: nameVal,
+                      cal: Number(overrides[`${base}.cal`] ?? item.cal) || 0,
+                      protein: Number(overrides[`${base}.protein`] ?? item.protein) || 0,
+                      netCarb: Number(overrides[`${base}.netCarb`] ?? item.netCarb) || 0,
+                      fat: Number(overrides[`${base}.fat`] ?? item.fat) || 0,
+                      fiber: Number(overrides[`${base}.fiber`] ?? item.fiber) || 0,
+                    })}
+                    style={{ fontSize: 11, color: "#1a1508", background: COLORS.gold, border: "none", borderRadius: 8, padding: "4px 10px", fontWeight: 800, cursor: "pointer" }}
+                  >+ {T("أضف", "Add")}</button>
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {fields.map(([fkey, val, label, color, bg, flex]) => (
