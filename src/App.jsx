@@ -967,6 +967,51 @@ function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides 
   const entries = foodLog[key] || [];
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", cal: "", protein: "", netCarb: "", fat: "", fiber: "" });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchState, setSearchState] = useState("idle"); // idle | loading | error | done
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) { setSearchResults([]); setSearchState("idle"); return; }
+    setSearchState("loading");
+    const t = setTimeout(async () => {
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 6000);
+      try {
+        const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=8&fields=product_name,brands,nutriments`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error("bad response");
+        const data = await res.json();
+        const products = (data.products || []).filter(p => p.product_name && p.nutriments && p.nutriments["energy-kcal_100g"] != null);
+        setSearchResults(products);
+        setSearchState("done");
+      } catch (e) {
+        setSearchResults([]);
+        setSearchState("error");
+      } finally {
+        clearTimeout(abortTimer);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const pickSearchResult = (product) => {
+    const n = product.nutriments;
+    const carbs = Number(n.carbohydrates_100g) || 0;
+    const fiber = Number(n.fiber_100g) || 0;
+    setForm({
+      name: product.brands ? `${product.product_name} (${product.brands})` : product.product_name,
+      cal: String(Math.round(Number(n["energy-kcal_100g"]) || 0)),
+      protein: String(Math.round((Number(n.proteins_100g) || 0) * 10) / 10),
+      netCarb: String(Math.round(Math.max(0, carbs - fiber) * 10) / 10),
+      fat: String(Math.round((Number(n.fat_100g) || 0) * 10) / 10),
+      fiber: String(Math.round(fiber * 10) / 10),
+    });
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchState("idle");
+  };
 
   const totals = entries.reduce((acc, e) => ({
     cal: acc.cal + (Number(e.cal) || 0),
@@ -1031,6 +1076,25 @@ function DailyCaloriesCard({ T, foodLog, addFoodItem, removeFoodItem, overrides 
 
       {showForm && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: entries.length ? 14 : 0, background: COLORS.surface2, borderRadius: 12, padding: 10 }}>
+          <div>
+            <input placeholder={T("🔍 ابحث عن أكلة (يعبي القيم تلقائياً)", "🔍 Search for a food (auto-fills values)")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              style={{ width: "100%", background: COLORS.surface3, border: `1px solid ${COLORS.goldDim}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
+            {searchState === "loading" && <div style={{ fontSize: 11, color: COLORS.mutedDim, marginTop: 6 }}>{T("جاري البحث...", "Searching...")}</div>}
+            {searchState === "error" && <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 6 }}>{T("البحث غير متاح حالياً، جرّب لاحقاً أو أدخل القيم يدوياً", "Search unavailable right now — try again later or enter values manually")}</div>}
+            {searchState === "done" && searchResults.length === 0 && <div style={{ fontSize: 11, color: COLORS.mutedDim, marginTop: 6 }}>{T("ما فيه نتائج", "No results")}</div>}
+            {searchResults.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, maxHeight: 200, overflowY: "auto" }}>
+                {searchResults.map((p, i) => (
+                  <button key={i} onClick={() => pickSearchResult(p)} style={{
+                    textAlign: "start", background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", cursor: "pointer",
+                  }}>
+                    <div style={{ fontSize: 12.5, color: COLORS.text, fontWeight: 700 }}>{p.product_name}{p.brands ? ` (${p.brands})` : ""}</div>
+                    <div style={{ fontSize: 10.5, color: COLORS.mutedDim, marginTop: 2 }}>{Math.round(p.nutriments["energy-kcal_100g"])} {T("سعرة / 100غم", "kcal / 100g")}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <input placeholder={T("اسم الصنف", "Item name")} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             style={{ background: COLORS.surface3, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", color: COLORS.text, fontSize: 13, fontFamily: "inherit" }} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
