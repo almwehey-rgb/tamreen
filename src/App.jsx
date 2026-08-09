@@ -1032,7 +1032,7 @@ function AddFoodForm({ T, onAdd }) {
       const controller = new AbortController();
       const abortTimer = setTimeout(() => controller.abort(), 6000);
       try {
-        const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&page_size=8&fields=product_name,brands,nutriments`;
+        const url = `/api/food-search?q=${encodeURIComponent(q)}`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error("bad response");
         const data = await res.json();
