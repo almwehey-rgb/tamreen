@@ -21,6 +21,31 @@ function formatEnNumber(value) {
   return Number.isFinite(numeric) ? numeric.toLocaleString("en-US") : normalized;
 }
 
+const EXERCISE_KEYS_BY_NAME = (() => {
+  const map = {};
+  [["phase1", 1], ["phase2", 2]].forEach(([progKey, ph]) => {
+    PROGRAM[progKey].forEach((day, di) => {
+      day.exercises.forEach((ex, ei) => {
+        day.weeks.forEach((w, wi) => {
+          (map[ex.name] ||= []).push(`p${ph}-w${wi}-d${di}-e${ei}`);
+        });
+      });
+    });
+  });
+  return map;
+})();
+
+function getBestLoggedWeight(workoutLogs, exerciseName, excludeKey) {
+  const keys = EXERCISE_KEYS_BY_NAME[exerciseName] || [];
+  let best = null;
+  for (const k of keys) {
+    if (k === excludeKey) continue;
+    const num = parseFloat(toEnNum(workoutLogs[k]?.weight));
+    if (Number.isFinite(num) && (best === null || num > best)) best = num;
+  }
+  return best;
+}
+
 const EX_TR = {"بار عالي":"High Bar Press","بطات جالس":"Seated Calf Raise","بطات واقف":"Standing Calf Raise","بلانك":"Plank","بنش مرتفع بايسبس":"Incline Bicep Bench","بنش منخفض معده":"Decline Bench Abs","تي-بار ضيق":"T-Bar Row (Close Grip)","جهاز أكتاف":"Shoulder Press Machine","جهاز أكتاف جانبي":"Lateral Raise Machine","جهاز أكتاف خلفي":"Rear Delt Machine","جهاز باي ضيق":"Close-Grip Bicep Machine","جهاز تجديف واسع":"Wide Row Machine","جهاز تجميع":"Pec Deck Fly","جهاز دفع":"Chest Press Machine","جهاز مستوي جالس":"Seated Row Machine","جهاز معده":"Ab Machine","جهاز هاك سكوات":"Hack Squat","حبل أكتاف خلفي":"Rope Rear Delt Pull","دامبل أكتاف جانبي جالس":"Seated DB Lateral Raise","دامبل تجميع":"Dumbbell Fly","دامبل تراي":"DB Tricep Extension","دامبل ددلفت روم":"DB Romanian Deadlift","دامبل دفع":"Dumbbell Press","دامبل مثلثات":"Dumbbell Shrugs","دبس للتراي":"Tricep Dips","ددلفت ستف":"Stiff-Leg Deadlift","رفرفة امامي":"Front Raise","رفرفة خلفي جالس":"Seated Rear Delt Fly","رفرفة خلفي منسدح":"Lying Rear Delt Fly","سحب مسطرة":"Straight Bar Pulldown","عقلة":"Pull-up","كيبل بايسبس":"Cable Bicep Curl","كيبل سحب واسع":"Wide Grip Pulldown","كيبل مسطرة":"Cable Tricep Pushdown","لنجز":"Lunges"};
 
 const DAY_TR = {"اليوم الأول: سحب ( ظهر + باي + أكتاف خلفي )":"Day 1: Pull (Back, Biceps, Rear Delts)","اليوم الأول: سحب":"Day 1: Pull","اليوم الثاني:دفع ( صدر + تراي + أكتاف )":"Day 2: Push (Chest, Triceps, Shoulders)","اليوم الثاني: دفع":"Day 2: Push","اليوم الثالث: جزء سفلي ( رجلين + معده  )":"Day 3: Lower Body (Legs, Abs)","اليوم الثالث: جزء سفلي":"Day 3: Lower Body","اليوم الرابع: جزء علوي":"Day 4: Upper Body","اليوم الخامس: جزء سفلي ( رجلين + معده ومثلثات )":"Day 5: Lower Body (Legs, Abs, Traps)","اليوم الخامس: جزء سفلي":"Day 5: Lower Body"};
@@ -501,6 +526,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           const repsVal = overrides[repsId] ?? (spec.reps || "");
           const restVal = overrides[restId] ?? (spec.rest || "");
           const numSets = parseInt(toEnNum(setsVal), 10) || 0;
+          const bestWeight = getBestLoggedWeight(workoutLogs, ex.name, key);
 
           return (
             <div key={key} style={{ background: log.done ? "rgba(90,160,107,0.08)" : COLORS.surface, borderRadius: 16, padding: 14, border: `1px solid ${log.done ? COLORS.green : COLORS.line}`, transition: "all 0.2s ease" }}>
@@ -552,6 +578,12 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 10.5, color: COLORS.mutedDim }}>{T("سجّل تكرارات كل جولة", "Log reps per set")}</span>
               </div>
+
+              {bestWeight != null && (
+                <div style={{ fontSize: 11.5, color: COLORS.gold, fontWeight: 700, marginTop: -4, marginBottom: 10 }}>
+                  {T(`🏆 أعلى وزن وصلته لهذا التمرين: ${formatEnNumber(bestWeight)} كغ`, `🏆 Highest weight you've reached: ${formatEnNumber(bestWeight)} kg`)}
+                </div>
+              )}
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {Array.from({ length: numSets }).map((_, si) => (
