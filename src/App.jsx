@@ -1303,6 +1303,7 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
       if (picked.length >= 3) break;
       if (item.cal <= calBudget) { picked.push(item); calBudget -= item.cal; }
     }
+    picked.forEach(item => addFoodItem({ ...item, mealType: "snacks" }));
     setSuggestedNames(new Set(picked.map(i => i.name)));
   };
 
@@ -1316,17 +1317,17 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
         width: "100%", padding: "12px", marginBottom: 16, borderRadius: 12,
         border: `1px solid ${COLORS.goldDim}`, background: "rgba(201,162,39,0.1)",
         color: COLORS.gold, fontSize: 13, fontWeight: 800, cursor: "pointer",
-      }}>🎯 {T("اقترح لي وجبات تكمّل هدفي اليوم", "Suggest meals to fit today's goal")}</button>
+      }}>🎯 {T("رتّب وأضف لي وجبات تكمّل هدفي اليوم", "Auto-fill meals to hit today's goal")}</button>
 
       {suggestedNames && suggestedNames.size === 0 && (
         <div style={{ fontSize: 12, color: COLORS.mutedDim, textAlign: "center", marginBottom: 16 }}>
-          {T("ما فيه مجال سعرات كافي اليوم لاقتراح وجبة", "No calorie room left today for a suggestion")}
+          {T("ما فيه مجال سعرات كافي اليوم لإضافة وجبة", "No calorie room left today to add anything")}
         </div>
       )}
 
       {suggestedNames && suggestedNames.size > 0 && (
         <div style={{ background: "rgba(224,72,62,0.08)", border: `1px solid ${COLORS.red}`, borderRadius: 12, padding: 12, marginBottom: 16 }}>
-          <div style={{ fontSize: 11.5, fontWeight: 800, color: COLORS.red, marginBottom: 8 }}>{T("مقترح لك (باللون الأحمر بالقائمة)", "Suggested for you (highlighted in red below)")}</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: COLORS.red, marginBottom: 8 }}>{T("تمت إضافتها لك تلقائياً (باللون الأحمر بالقائمة)", "Added automatically for you (highlighted in red below)")}</div>
           {META.meals.flatMap(c => c.items.map(item => ({ item, catLabel: T(c.category, MEAL_CAT_TR[c.category] || c.category) })))
             .filter(({ item }) => suggestedNames.has(item.name))
             .map(({ item, catLabel }) => (
