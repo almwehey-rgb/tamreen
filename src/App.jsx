@@ -1256,6 +1256,13 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
   const cat = META.meals[mealCat] || META.meals[0];
   const catNameId = `mealCat.${mealCat}`;
   const catDefault = T(cat.category, MEAL_CAT_TR[cat.category] || cat.category);
+  const [search, setSearch] = useState("");
+  const q = search.trim().toLowerCase();
+  const visibleItems = q
+    ? cat.items
+        .map((item, i) => ({ item, i }))
+        .filter(({ item }) => item.name.toLowerCase().includes(q))
+    : cat.items.map((item, i) => ({ item, i }));
 
   return (
     <div style={{ padding: "16px 16px 8px" }}>
@@ -1268,7 +1275,7 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
           const id = `mealCat.${ci}`;
           const label = overrides[id] ?? T(m.category, MEAL_CAT_TR[m.category] || m.category);
           return (
-            <button key={ci} onClick={() => setMealCat(ci)} style={{
+            <button key={ci} onClick={() => { setMealCat(ci); setSearch(""); }} style={{
               flexShrink: 0, padding: "8px 14px", borderRadius: 20,
               border: `1px solid ${mealCat === ci ? COLORS.gold : COLORS.line}`,
               background: mealCat === ci ? "rgba(201,162,39,0.15)" : "transparent",
@@ -1286,8 +1293,26 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
         </div>
       )}
 
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={T("بحث عن وجبة...", "Search meals...")}
+        style={{
+          width: "100%", boxSizing: "border-box", padding: "10px 14px", marginBottom: 14,
+          borderRadius: 12, border: `1px solid ${COLORS.line}`, background: COLORS.surface,
+          color: COLORS.text, fontSize: 13.5, fontFamily: "'Cairo', sans-serif",
+        }}
+      />
+
+      {q && visibleItems.length === 0 && (
+        <div style={{ fontSize: 12.5, color: COLORS.mutedDim, textAlign: "center", padding: "16px 0" }}>
+          {T("ما فيه نتائج مطابقة", "No matching results")}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {cat.items.map((item, i) => {
+        {visibleItems.map(({ item, i }) => {
           const base = `meal.${mealCat}.${i}`;
           const nameVal = overrides[`${base}.name`] ?? item.name;
           const fields = [
