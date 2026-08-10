@@ -1257,6 +1257,7 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
   const catNameId = `mealCat.${mealCat}`;
   const catDefault = T(cat.category, MEAL_CAT_TR[cat.category] || cat.category);
   const [search, setSearch] = useState("");
+  const [quickMealType, setQuickMealType] = useState(cat.category === "سناكات" ? "snacks" : "lunch");
   const q = search.trim().toLowerCase();
   const visibleItems = q
     ? cat.items
@@ -1299,11 +1300,24 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
         onChange={(e) => setSearch(e.target.value)}
         placeholder={T("بحث عن وجبة...", "Search meals...")}
         style={{
-          width: "100%", boxSizing: "border-box", padding: "10px 14px", marginBottom: 14,
+          width: "100%", boxSizing: "border-box", padding: "10px 14px", marginBottom: 10,
           borderRadius: 12, border: `1px solid ${COLORS.line}`, background: COLORS.surface,
           color: COLORS.text, fontSize: 13.5, fontFamily: "'Cairo', sans-serif",
         }}
       />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{T("أضف إلى:", "Add to:")}</span>
+        {MEAL_TYPES.map(mt => (
+          <button key={mt.key} onClick={() => setQuickMealType(mt.key)} style={{
+            padding: "5px 12px", borderRadius: 20,
+            border: `1px solid ${quickMealType === mt.key ? COLORS.gold : COLORS.line}`,
+            background: quickMealType === mt.key ? "rgba(201,162,39,0.15)" : "transparent",
+            color: quickMealType === mt.key ? COLORS.gold : COLORS.mutedDim,
+            fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+          }}>{T(mt.ar, mt.en)}</button>
+        ))}
+      </div>
 
       {q && visibleItems.length === 0 && (
         <div style={{ fontSize: 12.5, color: COLORS.mutedDim, textAlign: "center", padding: "16px 0" }}>
@@ -1338,6 +1352,7 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
                       netCarb: Number(overrides[`${base}.netCarb`] ?? item.netCarb) || 0,
                       fat: Number(overrides[`${base}.fat`] ?? item.fat) || 0,
                       fiber: Number(overrides[`${base}.fiber`] ?? item.fiber) || 0,
+                      mealType: quickMealType,
                     })}
                     style={{ fontSize: 11, color: "#1a1508", background: COLORS.gold, border: "none", borderRadius: 8, padding: "4px 10px", fontWeight: 800, cursor: "pointer" }}
                   >+ {T("أضف", "Add")}</button>
