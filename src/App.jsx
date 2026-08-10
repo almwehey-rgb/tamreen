@@ -30,7 +30,7 @@ const MEAL_CAT_TR = {"وجبات منزلية":"Home Meals","وجبات McDonald
 const COLORS = {
   canvas: "#343434", bg: "#101012", surface: "#18191B", surface2: "#202124", surface3: "#28292D",
   line: "#34353A", text: "#F3F0E8", muted: "#A0A1A5", mutedDim: "#66686E",
-  gold: "#D7AD2B", goldDim: "#8F7420", green: "#659675", rust: "#B86A50", blue: "#8B8D92",
+  gold: "#D7AD2B", goldDim: "#8F7420", green: "#659675", rust: "#B86A50", blue: "#8B8D92", red: "#E0483E",
 };
 
 function Ring({ pct, size = 64, stroke = 7, color = COLORS.gold, children }) {
@@ -1258,6 +1258,7 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
   const catDefault = T(cat.category, MEAL_CAT_TR[cat.category] || cat.category);
   const [search, setSearch] = useState("");
   const [quickMealType, setQuickMealType] = useState(cat.category === "سناكات" ? "snacks" : "lunch");
+  const [suggestedNames, setSuggestedNames] = useState(null);
   const q = search.trim().toLowerCase();
   const visibleItems = q
     ? cat.items
@@ -1265,11 +1266,77 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
         .filter(({ item }) => item.name.toLowerCase().includes(q))
     : cat.items.map((item, i) => ({ item, i }));
 
+  const suggestMeals = () => {
+    const p = META.profile;
+    const entries = foodLog[todayKey()] || [];
+    const totals = entries.reduce((acc, e) => ({
+      cal: acc.cal + (Number(e.cal) || 0),
+      protein: acc.protein + (Number(e.protein) || 0),
+      netCarb: acc.netCarb + (Number(e.netCarb) || 0),
+      fat: acc.fat + (Number(e.fat) || 0),
+      fiber: acc.fiber + (Number(e.fiber) || 0),
+    }), { cal: 0, protein: 0, netCarb: 0, fat: 0, fiber: 0 });
+    const remaining = {
+      cal: (parseTargetRange(overrides["profile.dailyCalories"] ?? p.dailyCalories) || 0) - totals.cal,
+      protein: (parseTargetRange(overrides["profile.protein"] ?? p.protein) || 0) - totals.protein,
+      netCarb: (parseTargetRange(overrides["profile.carbs"] ?? p.carbs) || 0) - totals.netCarb,
+      fat: (parseTargetRange(overrides["profile.fat"] ?? p.fat) || 0) - totals.fat,
+      fiber: (parseTargetRange(overrides["profile.fiber"] ?? p.fiber) || 0) - totals.fiber,
+    };
+
+    if (remaining.cal <= 0) { setSuggestedNames(new Set()); return; }
+
+    const scored = META.meals.flatMap(c => c.items)
+      .filter(item => item.cal <= remaining.cal)
+      .map(item => {
+        let score = Math.min(item.netCarb, Math.max(remaining.netCarb, 0))
+          + Math.min(item.fiber, Math.max(remaining.fiber, 0)) * 3;
+        if (remaining.protein <= 0) score -= item.protein * 1.5;
+        if (remaining.fat <= 0) score -= item.fat * 1.5;
+        return { item, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const picked = [];
+    let calBudget = remaining.cal;
+    for (const { item } of scored) {
+      if (picked.length >= 3) break;
+      if (item.cal <= calBudget) { picked.push(item); calBudget -= item.cal; }
+    }
+    setSuggestedNames(new Set(picked.map(i => i.name)));
+  };
+
   return (
     <div style={{ padding: "16px 16px 8px" }}>
       <SectionTitle eyebrow={T("خيارات الوجبات", "Meal options")} title={T("منيو الأكل", "Food Menu")} />
 
       <DailyCaloriesCard T={T} foodLog={foodLog} addFoodItem={addFoodItem} removeFoodItem={removeFoodItem} overrides={overrides} />
+
+      <button onClick={suggestMeals} style={{
+        width: "100%", padding: "12px", marginBottom: 16, borderRadius: 12,
+        border: `1px solid ${COLORS.goldDim}`, background: "rgba(201,162,39,0.1)",
+        color: COLORS.gold, fontSize: 13, fontWeight: 800, cursor: "pointer",
+      }}>🎯 {T("اقترح لي وجبات تكمّل هدفي اليوم", "Suggest meals to fit today's goal")}</button>
+
+      {suggestedNames && suggestedNames.size === 0 && (
+        <div style={{ fontSize: 12, color: COLORS.mutedDim, textAlign: "center", marginBottom: 16 }}>
+          {T("ما فيه مجال سعرات كافي اليوم لاقتراح وجبة", "No calorie room left today for a suggestion")}
+        </div>
+      )}
+
+      {suggestedNames && suggestedNames.size > 0 && (
+        <div style={{ background: "rgba(224,72,62,0.08)", border: `1px solid ${COLORS.red}`, borderRadius: 12, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: COLORS.red, marginBottom: 8 }}>{T("مقترح لك (باللون الأحمر بالقائمة)", "Suggested for you (highlighted in red below)")}</div>
+          {META.meals.flatMap(c => c.items.map(item => ({ item, catLabel: T(c.category, MEAL_CAT_TR[c.category] || c.category) })))
+            .filter(({ item }) => suggestedNames.has(item.name))
+            .map(({ item, catLabel }) => (
+              <div key={item.name} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0", color: COLORS.text }}>
+                <span>{item.name} <span style={{ color: COLORS.mutedDim, fontSize: 10.5 }}>· {catLabel}</span></span>
+                <span style={{ color: COLORS.gold, fontWeight: 700 }}>{Math.round(item.cal)} {T("سعرة", "kcal")}</span>
+              </div>
+            ))}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 16 }}>
         {META.meals.map((m, ci) => {
@@ -1336,8 +1403,9 @@ function MenuTab({ mealCat, setMealCat, T, editMode, overrides, setOverride, foo
             ["fat", item.fat, T("دهون", "fat"), null, COLORS.surface2, 1],
             ["fiber", item.fiber, T("ألياف", "fiber"), null, COLORS.surface2, 1],
           ];
+          const isSuggested = suggestedNames && suggestedNames.has(item.name);
           return (
-            <div key={i} style={{ background: COLORS.surface, borderRadius: 16, padding: 16, border: `1px solid ${COLORS.line}` }}>
+            <div key={i} style={{ background: COLORS.surface, borderRadius: 16, padding: 16, border: `1px solid ${isSuggested ? COLORS.red : COLORS.line}`, boxShadow: isSuggested ? `0 0 0 1px ${COLORS.red}` : "none" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 8 }}>
                 <Ed id={`${base}.name`} fallback={nameVal} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontWeight: 700, fontSize: 14.5, flex: 1 }} width="16em" />
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
