@@ -295,7 +295,6 @@ function SectionTitle({ title, sub, right }) {
 const TABS = [
   { key: "wheel", ar: "العجلة", en: "Wheel", icon: "🎡" },
   { key: "names", ar: "الأسماء", en: "Names", icon: "👤" },
-  { key: "forfeits", ar: "العقوبات", en: "Forfeits", icon: "🎯" },
   { key: "history", ar: "السجل", en: "History", icon: "🕘" },
 ];
 
@@ -304,9 +303,7 @@ export default function App() {
   const [lang, setLang] = useState("ar");
   const [tab, setTab] = useState("wheel");
   const [names, setNames] = useState(DEFAULT_NAMES);
-  const [forfeits, setForfeits] = useState([]);
   const [removeAfterSpin, setRemoveAfterSpin] = useState(false);
-  const [drawForfeit, setDrawForfeit] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [history, setHistory] = useState([]);
   const [spinning, setSpinning] = useState(false);
@@ -330,10 +327,8 @@ export default function App() {
         if (res && res.value) {
           const parsed = JSON.parse(res.value);
           if (Array.isArray(parsed.names)) setNames(parsed.names);
-          if (Array.isArray(parsed.forfeits)) setForfeits(parsed.forfeits);
           if (Array.isArray(parsed.history)) setHistory(parsed.history);
           if (typeof parsed.removeAfterSpin === "boolean") setRemoveAfterSpin(parsed.removeAfterSpin);
-          if (typeof parsed.drawForfeit === "boolean") setDrawForfeit(parsed.drawForfeit);
           if (typeof parsed.soundOn === "boolean") setSoundOn(parsed.soundOn);
           if (parsed.lang) setLang(parsed.lang);
         }
@@ -349,7 +344,7 @@ export default function App() {
     saveTimer.current = setTimeout(async () => {
       try {
         await window.storage.set(STORAGE_KEY, JSON.stringify({
-          names, forfeits, history, removeAfterSpin, drawForfeit, soundOn, lang,
+          names, history, removeAfterSpin, soundOn, lang,
         }), false);
         setToast(T("تم الحفظ", "Saved"));
         if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -357,7 +352,7 @@ export default function App() {
       } catch (e) { /* ignore */ }
     }, 600);
     return () => clearTimeout(saveTimer.current);
-  }, [names, forfeits, history, removeAfterSpin, drawForfeit, soundOn, lang, loaded]);
+  }, [names, history, removeAfterSpin, soundOn, lang, loaded]);
 
   useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current); }, []);
 
@@ -406,11 +401,7 @@ export default function App() {
         setDisplayRotation(finalRotation);
         setSpinning(false);
         const name = names[winnerIndex];
-        let forfeit = null;
-        if (drawForfeit && forfeits.length > 0) {
-          forfeit = forfeits[Math.floor(Math.random() * forfeits.length)];
-        }
-        const entry = { id: uid(), name, forfeit, time: Date.now(), removed: removeAfterSpin };
+        const entry = { id: uid(), name, time: Date.now(), removed: removeAfterSpin };
         setHistory(prev => [entry, ...prev].slice(0, MAX_HISTORY));
         setWinnerReveal(entry);
         if (ctx) playWin(ctx);
@@ -420,7 +411,7 @@ export default function App() {
       }
     };
     animRef.current = requestAnimationFrame(frame);
-  }, [spinning, names, forfeits, drawForfeit, removeAfterSpin, soundOn]);
+  }, [spinning, names, removeAfterSpin, soundOn]);
 
   const undoLast = useCallback(() => {
     if (history.length === 0) return;
@@ -493,9 +484,6 @@ export default function App() {
             }}>
               <Switch checked={removeAfterSpin} onChange={setRemoveAfterSpin} disabled={spinning}
                 label={T("حذف الفائز تلقائياً بعد كل لفة", "Remove winner after each spin")} />
-              <div style={{ height: 1, background: COLORS.line }} />
-              <Switch checked={drawForfeit} onChange={setDrawForfeit} disabled={spinning}
-                label={T("سحب عقوبة مع كل فائز", "Draw a forfeit with each winner")} />
             </div>
 
             {history.length > 0 && (
@@ -518,25 +506,6 @@ export default function App() {
           </div>
         )}
 
-        {tab === "forfeits" && (
-          <div style={{ padding: "20px 16px" }}>
-            <SectionTitle
-              title={T("قائمة العقوبات", "Forfeits List")}
-              sub={drawForfeit ? T("مفعّلة — تُسحب مع كل فائز", "Enabled — drawn with each winner") : T("غير مفعّلة", "Disabled")}
-            />
-            <div style={{ marginBottom: 14 }}>
-              <Switch checked={drawForfeit} onChange={setDrawForfeit} disabled={spinning}
-                label={T("تفعيل سحب عقوبة مع الفائز", "Enable drawing a forfeit with the winner")} />
-            </div>
-            <EditableList
-              items={forfeits} setItems={setForfeits} T={T} accent={COLORS.danger}
-              placeholder={T("عقوبة جديدة…", "New forfeit…")}
-              emptyHint={T("ما في عقوبات بعد. أضف عقوبة فوق أو خلي الخيار مطفي.", "No forfeits yet. Add one above, or leave the option off.")}
-              disabled={spinning}
-            />
-          </div>
-        )}
-
         {tab === "history" && (
           <div style={{ padding: "20px 16px" }}>
             <SectionTitle
@@ -552,10 +521,7 @@ export default function App() {
                     background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: "12px 14px",
                     display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10,
                   }}>
-                    <div>
-                      <div style={{ color: COLORS.text, fontWeight: 800, fontSize: 15 }}>{h.name}</div>
-                      {h.forfeit && <div style={{ color: COLORS.danger, fontSize: 13, marginTop: 2 }}>{h.forfeit}</div>}
-                    </div>
+                    <div style={{ color: COLORS.text, fontWeight: 800, fontSize: 15 }}>{h.name}</div>
                     <div style={{ color: COLORS.mutedDim, fontSize: 12, whiteSpace: "nowrap" }}>{formatTime(h.time, lang)}</div>
                   </div>
                 ))}
@@ -581,14 +547,8 @@ export default function App() {
               <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 6 }}>{T("الفائز", "Winner")}</div>
               <div style={{
                 color: COLORS.gold, fontWeight: 900, fontSize: 30, fontFamily: "'Cairo', sans-serif",
-                marginBottom: winnerReveal.forfeit ? 18 : 22, wordBreak: "break-word",
+                marginBottom: 22, wordBreak: "break-word",
               }}>{winnerReveal.name}</div>
-              {winnerReveal.forfeit && (
-                <div style={{ background: COLORS.surface2, borderRadius: 12, padding: "12px 16px", marginBottom: 18 }}>
-                  <div style={{ color: COLORS.muted, fontSize: 12, marginBottom: 4 }}>{T("العقوبة", "Forfeit")}</div>
-                  <div style={{ color: COLORS.text, fontWeight: 700, fontSize: 17 }}>{winnerReveal.forfeit}</div>
-                </div>
-              )}
               <button onClick={() => setWinnerReveal(null)} style={{
                 background: COLORS.gold, color: "#1a1508", border: "none", borderRadius: 12,
                 padding: "12px 24px", fontWeight: 800, fontSize: 15, cursor: "pointer", width: "100%",
