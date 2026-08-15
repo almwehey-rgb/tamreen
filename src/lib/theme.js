@@ -1,26 +1,32 @@
 export const COLORS = {
-  bg: "#141416",
-  surface: "#1c1c20",
-  surface2: "#232328",
-  surface3: "#2a2a30",
-  border: "#2c2c33",
-  text: "#f4f3ef",
-  textDim: "#a7a6ac",
-  textFaint: "#6f6e75",
-  gold: "#d9b25c",
-  goldSoft: "#f0d896",
-  goldDim: "#8a7136",
-  goldBg: "rgba(217,178,92,0.13)",
-  green: "#3ecb82",
-  greenBg: "rgba(62,203,130,0.14)",
-  red: "#ef5f5f",
-  redBg: "rgba(239,95,95,0.14)",
-  blue: "#5b9bef",
-  blueBg: "rgba(91,155,239,0.14)",
+  bg: "#111219",
+  bgSoft: "#15161f",
+  surface: "#1b1d29",
+  surface2: "#242637",
+  surface3: "#2c2e42",
+  border: "#31334a",
+  text: "#f5f4fb",
+  textDim: "#a9abc0",
+  textFaint: "#6f7188",
+  accent: "#ff7a45",
+  accentSoft: "rgba(255,122,69,0.16)",
+  accentText: "#1a0f08",
+  green: "#4ecb82",
+  greenBg: "rgba(78,203,130,0.16)",
+  red: "#ff5d5d",
+  redBg: "rgba(255,93,93,0.16)",
 };
 
 export const FONT_HEAD = "'Cairo', sans-serif";
 export const FONT_BODY = "'Tajawal', sans-serif";
 
-export const ACCOUNT_COLORS = ["#d9b25c", "#5b9bef", "#3ecb82", "#ef5f5f", "#b98af0", "#4fc3d9"];
-export const GOAL_COLORS = ["#d9b25c", "#3ecb82", "#5b9bef", "#b98af0", "#f0955a", "#4fc3d9"];
+export const WHEEL_COLORS = [
+  "#FF6363",
+  "#FFB648",
+  "#F4D35E",
+  "#4ECB82",
+  "#2FD9C4",
+  "#5B8DEF",
+  "#B98AF0",
+  "#FF7AAE",
+];
