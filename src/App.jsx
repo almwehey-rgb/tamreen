@@ -809,15 +809,15 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
         </div>
       )}
 
-      {isDeload && (
-        <div style={{ background: "rgba(193,90,60,0.12)", border: `1px solid ${COLORS.rust}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#E6A28D", lineHeight: 1.8 }}>
-          {T("أسبوع ديلود (راحة نشطة) — خفّف الأوزان 20-30% ولا توصل للفشل العضلي.", "Deload week (active recovery) — cut weights 20-30% and avoid muscular failure.")}
-        </div>
-      )}
-
       {COACH_NOTES[globalWeekNum] && (
         <div style={{ background: "rgba(201,162,39,0.1)", border: `1px solid ${COLORS.goldDim}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: COLORS.gold, lineHeight: 1.8 }}>
           💬 {T(COACH_NOTES[globalWeekNum].ar, COACH_NOTES[globalWeekNum].en)}
+        </div>
+      )}
+
+      {isDeload && (
+        <div style={{ background: "rgba(193,90,60,0.12)", border: `1px solid ${COLORS.rust}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#E6A28D", lineHeight: 1.8 }}>
+          {T("أسبوع ديلود (راحة نشطة) — خفّف الأوزان 20-30% ولا توصل للفشل العضلي.", "Deload week (active recovery) — cut weights 20-30% and avoid muscular failure.")}
         </div>
       )}
 
