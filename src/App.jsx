@@ -27,6 +27,17 @@ const DAY_TR = {"اليوم الأول: سحب ( ظهر + باي + أكتاف خ
 
 const MEAL_CAT_TR = {"وجبات منزلية":"Home Meals","وجبات McDonald's":"McDonald's","وجبات Subway":"Subway","سناكات":"Snacks","وجبات Diet Station":"Diet Station","مطاعم أخرى":"Other Restaurants","سلطات وشوربات Diet Station":"Diet Station Salads & Soups","سناكات Diet Station":"Diet Station Snacks"};
 
+const COACH_NOTES = {
+  1: { ar: "أول اسبوع التمرين ممكن تحس ان سهل، ولكن الصعوبه ستزداد بالتدريج الى ان توصل مرحلة ماتقدر تعطي ولا تكرار زيادة في التمرين، فاصبر وشد حيلك", en: "The first week might feel easy, but the difficulty will gradually increase until you reach a point where you can't add another rep — be patient and stay strong." },
+  2: { ar: "الاسبوع الثاني إلى الخامس راح يزداد حجم التمرين معاك من ناحية الجولات، والتمارين راح تثبت عليهم إلى نهاية المرحلة", en: "From week 2 to week 5, your training volume (sets) will increase, and the exercises will stay fixed until the end of the phase." },
+  5: { ar: "زيد الأوزان والتكرارات اذا تقدر وابذل اقصى مجهود تقدر عليه بشرط انك ماتضحي بالتكنيك الخاص بالتمرين ، لان الاسبوع الي بعده بيكون ديلود بمثابة اسبوع الراحة", en: "Increase weights and reps if you can, and give it your max effort — as long as you don't sacrifice your form. Next week is a deload (recovery) week." },
+  6: { ar: "قبل ماتدخل بهذا الاسبوع، اذا تحس انك موتعبان كمل على الاسبوع الي طاف بس اكسر اوزانك والتكرارات، وسجل الارقام بنفس الخانات للاسبوع الخامس، ولكن اذا تحس انك تعبان موقادر تتطور اكثر، ابدأ بهذا الاسبوع", en: "Before starting this week: if you're not too tired, keep going with last week's weights/reps but log the numbers in week 5's fields instead. If you feel exhausted and can't push further, start this deload week as planned." },
+  7: { ar: "بس تخلص الديلود وتبدأ الاسبوع السابع بيكون سهل، ولكن أصعب من أول اسبوعين بالجدول، بهذه الطريقة راح نحرص على التطور بالمدى البعيد، كالعادة الصعوبه راح تزداد بالتدريج، شد حيلك واستمر", en: "Once the deload is done and you start week 7, it'll feel easy — but harder than the first two weeks of the program. This keeps your long-term progress on track. Difficulty will ramp up gradually as usual — stay strong and keep going." },
+  8: { ar: "الاسبوع الثامن إلى العاشر راح يزداد حجم التمرين معاك من ناحية الجولات، والتمارين راح تثبت عليهم إلى نهاية المرحلة", en: "From week 8 to week 10, your training volume (sets) will increase, and the exercises will stay fixed until the end of the phase." },
+  11: { ar: "زيد الأوزان والتكرارات اذا تقدر وابذل اقصى مجهود تقدر عليه بشرط انك ماتضحي بالتكنيك الخاص بالتمرين ، لان الاسبوع الي بعده بيكون ديلود بمثابة اسبوع الراحة", en: "Increase weights and reps if you can, and give it your max effort — as long as you don't sacrifice your form. Next week is a deload (recovery) week." },
+  12: { ar: "قبل ماتدخل بهذا الاسبوع، اذا تحس انك موتعبان كمل على الاسبوع الي طاف بس اكسر اوزانك والتكرارات، وسجل الارقام بنفس الخانات للاسبوع الخامس، ولكن اذا تحس انك تعبان موقادر تتطور اكثر، ابدأ بهذا الاسبوع", en: "Before starting this week: if you're not too tired, keep going with last week's weights/reps but log the numbers in week 5's fields instead. If you feel exhausted and can't push further, start this deload week as planned." },
+};
+
 const COLORS = {
   canvas: "#343434", bg: "#101012", surface: "#18191B", surface2: "#202124", surface3: "#28292D",
   line: "#34353A", text: "#F3F0E8", muted: "#A0A1A5", mutedDim: "#66686E",
@@ -801,6 +812,12 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
       {isDeload && (
         <div style={{ background: "rgba(193,90,60,0.12)", border: `1px solid ${COLORS.rust}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#E6A28D", lineHeight: 1.8 }}>
           {T("أسبوع ديلود (راحة نشطة) — خفّف الأوزان 20-30% ولا توصل للفشل العضلي.", "Deload week (active recovery) — cut weights 20-30% and avoid muscular failure.")}
+        </div>
+      )}
+
+      {COACH_NOTES[globalWeekNum] && (
+        <div style={{ background: "rgba(201,162,39,0.1)", border: `1px solid ${COLORS.goldDim}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: COLORS.gold, lineHeight: 1.8 }}>
+          💬 {T(COACH_NOTES[globalWeekNum].ar, COACH_NOTES[globalWeekNum].en)}
         </div>
       )}
 
