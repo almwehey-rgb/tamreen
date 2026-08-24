@@ -337,6 +337,26 @@ export default function App() {
     }
   }, [workoutLogs, sessionKey, phase, weekIdx, dayIdx]);
 
+  const prevSessionRef = useRef({ key: null, done: false });
+  useEffect(() => {
+    const done = isDayFullyDone(workoutLogs, phase, weekIdx, dayIdx);
+    const prev = prevSessionRef.current;
+    if (prev.key === sessionKey && !prev.done && done) {
+      const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
+      if (dayIdx < days.length - 1) {
+        setDayIdx(dayIdx + 1);
+      } else if (weekIdx < 5) {
+        setWeekIdx(weekIdx + 1);
+        setDayIdx(0);
+      } else if (phase === 1) {
+        setPhase(2);
+        setWeekIdx(0);
+        setDayIdx(0);
+      }
+    }
+    prevSessionRef.current = { key: sessionKey, done };
+  }, [workoutLogs, sessionKey, phase, weekIdx, dayIdx]);
+
   const T = useCallback((ar, en) => (lang === "ar" ? ar : en), [lang]);
 
   useEffect(() => {
