@@ -410,6 +410,23 @@ export default function App() {
     });
   }, [sessionKey]);
 
+  const resetDay = useCallback(() => {
+    const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
+    const count = days[dayIdx].exercises.length;
+    setWorkoutLogs(prev => {
+      const next = { ...prev };
+      for (let i = 0; i < count; i++) delete next[`${sessionKey}-e${i}`];
+      return next;
+    });
+    setWorkoutTimes(prev => {
+      if (prev[sessionKey] == null) return prev;
+      const next = { ...prev };
+      delete next[sessionKey];
+      return next;
+    });
+    setElapsed(0);
+  }, [phase, dayIdx, sessionKey]);
+
   const openTab = useCallback((nextTab) => {
     if (nextTab === "workout") {
       const resume = findResumePoint(workoutLogs);
@@ -496,7 +513,7 @@ export default function App() {
             phase={phase} setPhase={setPhase} weekIdx={weekIdx} setWeekIdx={setWeekIdx}
             dayIdx={dayIdx} setDayIdx={setDayIdx} workoutLogs={workoutLogs} setExerciseLog={setExerciseLog}
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
-            elapsed={elapsed} isTimeSaved={workoutTimes[sessionKey] != null} resetWorkoutTimer={resetWorkoutTimer}
+            elapsed={elapsed} isTimeSaved={workoutTimes[sessionKey] != null} resetWorkoutTimer={resetWorkoutTimer} resetDay={resetDay}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} workoutLogs={workoutLogs} overrides={overrides} T={T} />}
@@ -611,7 +628,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed, isTimeSaved, resetWorkoutTimer }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed, isTimeSaved, resetWorkoutTimer, resetDay }) {
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
   const week = day.weeks[weekIdx];
@@ -777,6 +794,20 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
             </button>
           );
         })}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10, marginTop: -8 }}>
+        <button
+          onClick={() => {
+            if (window.confirm(T("متأكد تبي تصفّر كل تمارين اليوم؟ بيمسح كل الأوزان والتكرارات المسجّلة.", "Reset all of today's exercises? This clears every logged weight and rep."))) {
+              resetDay();
+            }
+          }}
+          style={{
+            padding: "4px 10px", borderRadius: 8, border: `1px solid ${COLORS.rust}`, background: "transparent",
+            color: COLORS.rust, fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+          }}
+        >🗑 {T("تصفير اليوم", "Reset day")}</button>
       </div>
 
       {totalCount > 0 && (
