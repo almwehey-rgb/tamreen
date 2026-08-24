@@ -166,11 +166,11 @@ function getCoachWeekTips(phase, localWeek) {
       : [{ ar: "أول أسبوع بعد الديلود بيكون سهل نسبياً، بس أصعب من أول أسبوعين بالمرحلة الأولى. راح تستخدم نفس وزن الأسبوع الخامس، بس حاول تكسر رقم تكراراتك هالمرة.", en: "The first week after the deload is easier, but harder than the phase's first two weeks. Use the same weight as week 5, but try to beat your rep numbers this time." }];
   }
   if (localWeek >= 2 && localWeek <= 4) {
-    return [{ ar: "من هالأسبوع لين الخامس بيزيد حجم التمرين (عدد الجولات)، والتمارين نفسها تثبت لين نهاية المرحلة.", en: "From this week through week 5, training volume (number of sets) increases, while the exercises themselves stay fixed until the end of the phase." }];
+    return [{ ar: "من هالأسبوع بيزيد حجم التمرين (عدد الجولات) تدريجياً حتى آخر أسبوع بناء قبل الديلود، والتمارين نفسها تثبت لين نهاية المرحلة.", en: "From this week, training volume (number of sets) gradually increases through the last build week before the deload, while the exercises themselves stay fixed until the end of the phase." }];
   }
   if (localWeek === 5) {
     return [
-      { ar: "من هالأسبوع لين الخامس بيزيد حجم التمرين (عدد الجولات)، والتمارين نفسها تثبت لين نهاية المرحلة.", en: "From this week through week 5, training volume (number of sets) increases, while the exercises themselves stay fixed until the end of the phase." },
+      { ar: "وصلت لآخر أسبوع بناء قبل الديلود — حجم التمرين وصل لأعلى مستواه بالمرحلة.", en: "You've reached the last build week before the deload — training volume is at its highest point in the phase." },
       { ar: "هالأسبوع آخر أسبوع بناء قبل الديلود — زد الأوزان والتكرارات لأقصى مجهود تقدر عليه بدون ما تضحي بالتكنيك.", en: "This is the last build week before the deload — push weights and reps to your max effort without sacrificing technique." },
     ];
   }
