@@ -48,11 +48,7 @@ function getBestLoggedWeight(workoutLogs, exerciseName, excludeKey) {
 
 const ALL_EXERCISE_NAMES = [...new Set(PROGRAM.phase1.flatMap(day => day.exercises.map(ex => ex.name)))];
 
-function parseRestSeconds(restStr) {
-  const m = String(restStr || "").match(/(\d+):(\d+)/);
-  if (!m) return 60;
-  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-}
+const DEFAULT_REST_SECONDS = 105;
 
 function formatMMSS(totalSeconds) {
   const s = Math.max(0, totalSeconds);
@@ -141,6 +137,14 @@ function buildProgressExportText(workoutLogs, followup, T) {
 }
 
 const EX_TR = {"بار عالي":"High Bar Press","بطات جالس":"Seated Calf Raise","بطات واقف":"Standing Calf Raise","بلانك":"Plank","بنش مرتفع بايسبس":"Incline Bicep Bench","بنش منخفض معده":"Decline Bench Abs","تي-بار ضيق":"T-Bar Row (Close Grip)","جهاز أكتاف":"Shoulder Press Machine","جهاز أكتاف جانبي":"Lateral Raise Machine","جهاز أكتاف خلفي":"Rear Delt Machine","جهاز باي ضيق":"Close-Grip Bicep Machine","جهاز تجديف واسع":"Wide Row Machine","جهاز تجميع":"Pec Deck Fly","جهاز دفع":"Chest Press Machine","جهاز مستوي جالس":"Seated Row Machine","جهاز معده":"Ab Machine","جهاز هاك سكوات":"Hack Squat","حبل أكتاف خلفي":"Rope Rear Delt Pull","دامبل أكتاف جانبي جالس":"Seated DB Lateral Raise","دامبل تجميع":"Dumbbell Fly","دامبل تراي":"DB Tricep Extension","دامبل ددلفت روم":"DB Romanian Deadlift","دامبل دفع":"Dumbbell Press","دامبل مثلثات":"Dumbbell Shrugs","دبس للتراي":"Tricep Dips","ددلفت ستف":"Stiff-Leg Deadlift","رفرفة امامي":"Front Raise","رفرفة خلفي جالس":"Seated Rear Delt Fly","رفرفة خلفي منسدح":"Lying Rear Delt Fly","سحب مسطرة":"Straight Bar Pulldown","عقلة":"Pull-up","كيبل بايسبس":"Cable Bicep Curl","كيبل سحب واسع":"Wide Grip Pulldown","كيبل مسطرة":"Cable Tricep Pushdown","لنجز":"Lunges"};
+
+function exerciseLabel(T, overrides, originalName) {
+  const arOverride = overrides[`exNameAr.${originalName}`];
+  const enOverride = overrides[`exNameEn.${originalName}`];
+  const ar = arOverride !== undefined && arOverride !== "" ? arOverride : originalName;
+  const en = enOverride !== undefined && enOverride !== "" ? enOverride : (EX_TR[originalName] || originalName);
+  return T(ar, en);
+}
 
 const DAY_TR = {"اليوم الأول: سحب ( ظهر + باي + أكتاف خلفي )":"Day 1: Pull (Back, Biceps, Rear Delts)","اليوم الأول: سحب":"Day 1: Pull","اليوم الثاني:دفع ( صدر + تراي + أكتاف )":"Day 2: Push (Chest, Triceps, Shoulders)","اليوم الثاني: دفع":"Day 2: Push","اليوم الثالث: جزء سفلي ( رجلين + معده  )":"Day 3: Lower Body (Legs, Abs)","اليوم الثالث: جزء سفلي":"Day 3: Lower Body","اليوم الرابع: جزء علوي":"Day 4: Upper Body","اليوم الخامس: جزء سفلي ( رجلين + معده ومثلثات )":"Day 5: Lower Body (Legs, Abs, Traps)","اليوم الخامس: جزء سفلي":"Day 5: Lower Body"};
 
@@ -426,7 +430,7 @@ export default function App() {
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
           />
         )}
-        {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} workoutLogs={workoutLogs} T={T} />}
+        {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} workoutLogs={workoutLogs} overrides={overrides} T={T} />}
         {tab === "menu" && <MenuTab mealCat={mealCat} setMealCat={setMealCat} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride} />}
       </ErrorBoundary>
 
@@ -554,7 +558,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const totalCount = day.exercises.length;
   const nextIdx = day.exercises.findIndex((_, i) => !workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.done);
   const nextEx = nextIdx >= 0 ? day.exercises[nextIdx] : null;
-  const nextName = nextEx ? T(nextEx.name, EX_TR[nextEx.name] || nextEx.name) : null;
+  const nextName = nextEx ? exerciseLabel(T, overrides, nextEx.name) : null;
   const [showInstructions, setShowInstructions] = useState(false);
   const weekTips = getCoachWeekTips(phase, weekIdx + 1);
   const instructionItems = [...weekTips, ...COACH_INSTRUCTIONS_ALWAYS];
@@ -580,10 +584,12 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
       return () => clearTimeout(t);
     }
   }, [restTimer?.remaining]);
-  const startRestTimer = (exName, restStr) => {
-    const total = parseRestSeconds(restStr);
+  const startRestTimer = (exName) => {
+    const total = DEFAULT_REST_SECONDS;
     setRestTimer({ exName, remaining: total, total });
   };
+
+  const [showNameList, setShowNameList] = useState(false);
 
   return (
     <div style={{ padding: "16px 16px 8px" }}>
@@ -609,6 +615,42 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           </ul>
         )}
       </div>
+
+      {editMode && (
+        <div style={{ background: COLORS.surface, borderRadius: 12, border: `1px solid ${COLORS.line}`, marginBottom: 14, overflow: "hidden" }}>
+          <button onClick={() => setShowNameList(s => !s)} style={{
+            width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "none", border: "none", padding: "10px 14px", cursor: "pointer", color: COLORS.green,
+          }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800 }}>{T("📝 أسماء التمارين (عربي/إنجليزي)", "📝 Exercise names (Arabic/English)")}</span>
+            <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{showNameList ? T("إخفاء", "Hide") : T("عرض", "Show")}</span>
+          </button>
+          {showNameList && (
+            <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {ALL_EXERCISE_NAMES.map(name => (
+                <div key={name} style={{ display: "flex", flexDirection: "column", gap: 4, paddingBottom: 10, borderBottom: `1px solid ${COLORS.line}` }}>
+                  <span style={{ fontSize: 10, color: COLORS.mutedDim }}>{name}</span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      value={overrides[`exNameAr.${name}`] ?? name}
+                      onChange={e => setOverride(`exNameAr.${name}`, e.target.value)}
+                      placeholder={T("عربي", "Arabic")}
+                      style={{ flex: 1, minWidth: 0, background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 8px", color: COLORS.text, fontSize: 12, fontFamily: "inherit" }}
+                    />
+                    <input
+                      value={overrides[`exNameEn.${name}`] ?? (EX_TR[name] || name)}
+                      onChange={e => setOverride(`exNameEn.${name}`, e.target.value)}
+                      placeholder={T("إنجليزي", "English")}
+                      dir="ltr"
+                      style={{ flex: 1, minWidth: 0, background: COLORS.surface2, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 8px", color: COLORS.text, fontSize: 12, fontFamily: "inherit" }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
         {[1, 2].map(ph => (
@@ -688,8 +730,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           const spec = week.sets[i];
           const key = `p${phase}-w${weekIdx}-d${dayIdx}-e${i}`;
           const log = workoutLogs[key] || { weight: "", reps: [] };
-          const nameId = `exName.${phase}.${dayIdx}.${i}`;
-          const defaultName = T(ex.name, EX_TR[ex.name] || ex.name);
+          const defaultName = exerciseLabel(T, overrides, ex.name);
           const setsId = `exSpec.${phase}.${weekIdx}.${dayIdx}.${i}.sets`;
           const repsId = `exSpec.${phase}.${weekIdx}.${dayIdx}.${i}.reps`;
           const restId = `exSpec.${phase}.${weekIdx}.${dayIdx}.${i}.rest`;
@@ -716,7 +757,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                   >{log.done ? "✓" : toEnNum(ex.num)}</button>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <Ed id={nameId} fallback={defaultName} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontWeight: 700, fontSize: 15, textDecoration: log.done ? "line-through" : "none", opacity: log.done ? 0.7 : 1 }} width="12em" />
+                      <span style={{ fontWeight: 700, fontSize: 15, textDecoration: log.done ? "line-through" : "none", opacity: log.done ? 0.7 : 1 }}>{defaultName}</span>
                       {log.done && !editMode && (
                         <span style={{ fontSize: 10, fontWeight: 800, color: COLORS.green, background: "rgba(90,160,107,0.15)", border: `1px solid ${COLORS.green}`, borderRadius: 6, padding: "1px 6px" }}>{T("تم الانتهاء", "Done")}</span>
                       )}
@@ -770,7 +811,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                           reps[si] = val;
                           return { ...cur, reps };
                         });
-                        if (val) startRestTimer(defaultName, restVal);
+                        if (val) startRestTimer(defaultName);
                       }}
                       style={{ width: 40, height: 40, borderRadius: "50%", textAlign: "center", border: `2px solid ${(log.reps && log.reps[si]) ? COLORS.gold : COLORS.line}`, background: (log.reps && log.reps[si]) ? "rgba(201,162,39,0.14)" : COLORS.surface2, color: COLORS.text, fontWeight: 800, fontSize: 14, fontFamily: "'Cairo', sans-serif" }} />
                     <span style={{ fontSize: 9, color: COLORS.mutedDim }}>{T("جولة", "Set")} {si + 1}</span>
@@ -817,7 +858,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
 }
 
 /* ---------------- FOLLOWUP ---------------- */
-function FollowupTab({ followup, setFollowup, workoutLogs, T }) {
+function FollowupTab({ followup, setFollowup, workoutLogs, overrides, T }) {
   const [openWeek, setOpenWeek] = useState(() => {
     for (let i = 1; i <= TOTAL_WEEKS; i++) if (!followup[i] || !followup[i].steps) return i;
     return 1;
@@ -885,7 +926,7 @@ function FollowupTab({ followup, setFollowup, workoutLogs, T }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {bestWeights.map(row => (
                 <div key={row.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 4px", borderBottom: `1px solid ${COLORS.line}` }}>
-                  <span style={{ fontSize: 12.5, color: COLORS.text }}>{T(row.name, EX_TR[row.name] || row.name)}</span>
+                  <span style={{ fontSize: 12.5, color: COLORS.text }}>{exerciseLabel(T, overrides, row.name)}</span>
                   <span style={{ fontSize: 12.5, fontWeight: 800, color: COLORS.gold }}>{formatEnNumber(row.best)} {T("كغ", "kg")}</span>
                 </div>
               ))}
