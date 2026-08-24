@@ -139,11 +139,9 @@ function buildProgressExportText(workoutLogs, followup, T) {
 const EX_TR = {"بار عالي":"High Bar Press","بطات جالس":"Seated Calf Raise","بطات واقف":"Standing Calf Raise","بلانك":"Plank","بنش مرتفع بايسبس":"Incline Bicep Bench","بنش منخفض معده":"Decline Bench Abs","تي-بار ضيق":"T-Bar Row (Close Grip)","جهاز أكتاف":"Shoulder Press Machine","جهاز أكتاف جانبي":"Lateral Raise Machine","جهاز أكتاف خلفي":"Rear Delt Machine","جهاز باي ضيق":"Close-Grip Bicep Machine","جهاز تجديف واسع":"Wide Row Machine","جهاز تجميع":"Pec Deck Fly","جهاز دفع":"Chest Press Machine","جهاز مستوي جالس":"Seated Row Machine","جهاز معده":"Ab Machine","جهاز هاك سكوات":"Hack Squat","حبل أكتاف خلفي":"Rope Rear Delt Pull","دامبل أكتاف جانبي جالس":"Seated DB Lateral Raise","دامبل تجميع":"Dumbbell Fly","دامبل تراي":"DB Tricep Extension","دامبل ددلفت روم":"DB Romanian Deadlift","دامبل دفع":"Dumbbell Press","دامبل مثلثات":"Dumbbell Shrugs","دبس للتراي":"Tricep Dips","ددلفت ستف":"Stiff-Leg Deadlift","رفرفة امامي":"Front Raise","رفرفة خلفي جالس":"Seated Rear Delt Fly","رفرفة خلفي منسدح":"Lying Rear Delt Fly","سحب مسطرة":"Straight Bar Pulldown","عقلة":"Pull-up","كيبل بايسبس":"Cable Bicep Curl","كيبل سحب واسع":"Wide Grip Pulldown","كيبل مسطرة":"Cable Tricep Pushdown","لنجز":"Lunges"};
 
 function exerciseLabel(T, overrides, originalName) {
+  // Exercise names always show Arabic, regardless of the AR/EN toggle.
   const arOverride = overrides[`exNameAr.${originalName}`];
-  const enOverride = overrides[`exNameEn.${originalName}`];
-  const ar = arOverride !== undefined && arOverride !== "" ? arOverride : originalName;
-  const en = enOverride !== undefined && enOverride !== "" ? enOverride : (EX_TR[originalName] || originalName);
-  return T(ar, en);
+  return arOverride !== undefined && arOverride !== "" ? arOverride : originalName;
 }
 
 const DAY_TR = {"اليوم الأول: سحب ( ظهر + باي + أكتاف خلفي )":"Day 1: Pull (Back, Biceps, Rear Delts)","اليوم الأول: سحب":"Day 1: Pull","اليوم الثاني:دفع ( صدر + تراي + أكتاف )":"Day 2: Push (Chest, Triceps, Shoulders)","اليوم الثاني: دفع":"Day 2: Push","اليوم الثالث: جزء سفلي ( رجلين + معده  )":"Day 3: Lower Body (Legs, Abs)","اليوم الثالث: جزء سفلي":"Day 3: Lower Body","اليوم الرابع: جزء علوي":"Day 4: Upper Body","اليوم الخامس: جزء سفلي ( رجلين + معده ومثلثات )":"Day 5: Lower Body (Legs, Abs, Traps)","اليوم الخامس: جزء سفلي":"Day 5: Lower Body"};
@@ -281,13 +279,27 @@ function getLatestScheduleWeek(followup) {
   return null;
 }
 
+function findResumePoint(workoutLogs) {
+  for (const ph of [1, 2]) {
+    const days = ph === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
+    for (let wi = 0; wi < 6; wi++) {
+      for (let di = 0; di < days.length; di++) {
+        const exercises = days[di].exercises;
+        const allDone = exercises.length > 0 && exercises.every((_, i) => workoutLogs[`p${ph}-w${wi}-d${di}-e${i}`]?.done);
+        if (!allDone) return { phase: ph, weekIdx: wi, dayIdx: di };
+      }
+    }
+  }
+  return { phase: 2, weekIdx: 5, dayIdx: PROGRAM.phase2.length - 1 };
+}
+
 export default function App() {
   const [tab, setTab] = useState("home");
   const [loaded, setLoaded] = useState(false);
   const [workoutLogs, setWorkoutLogs] = useState({});
   const [followup, setFollowup] = useState(emptyFollowup());
   const [overrides, setOverrides] = useState({});
-  const [lang, setLang] = useState("ar");
+  const [lang, setLang] = useState("en");
   const [editMode, setEditMode] = useState(false);
   const [phase, setPhase] = useState(1);
   const [weekIdx, setWeekIdx] = useState(0);
@@ -312,14 +324,13 @@ export default function App() {
         const res = await window.storage.get(STORAGE_KEY, false);
         if (res && res.value) {
           const parsed = JSON.parse(res.value);
-          if (parsed.workoutLogs) setWorkoutLogs(parsed.workoutLogs);
-          if (parsed.followup) {
-            const savedFollowup = { ...emptyFollowup(), ...parsed.followup };
-            const latestWeek = getLatestScheduleWeek(savedFollowup) || 1;
-            setFollowup(savedFollowup);
-            setPhase(latestWeek <= 6 ? 1 : 2);
-            setWeekIdx((latestWeek - 1) % 6);
-          }
+          const savedWorkoutLogs = parsed.workoutLogs || {};
+          if (parsed.workoutLogs) setWorkoutLogs(savedWorkoutLogs);
+          if (parsed.followup) setFollowup({ ...emptyFollowup(), ...parsed.followup });
+          const resume = findResumePoint(savedWorkoutLogs);
+          setPhase(resume.phase);
+          setWeekIdx(resume.weekIdx);
+          setDayIdx(resume.dayIdx);
           if (parsed.overrides) setOverrides(parsed.overrides);
           if (parsed.lang) setLang(parsed.lang);
         }
@@ -349,15 +360,13 @@ export default function App() {
 
   const openTab = useCallback((nextTab) => {
     if (nextTab === "workout") {
-      const latestWeek = getLatestScheduleWeek(followup) || 1;
-      const nextPhase = latestWeek <= 6 ? 1 : 2;
-      const nextWeekIdx = (latestWeek - 1) % 6;
-      if (nextPhase !== phase || nextWeekIdx !== weekIdx) setDayIdx(0);
-      setPhase(nextPhase);
-      setWeekIdx(nextWeekIdx);
+      const resume = findResumePoint(workoutLogs);
+      setPhase(resume.phase);
+      setWeekIdx(resume.weekIdx);
+      setDayIdx(resume.dayIdx);
     }
     setTab(nextTab);
-  }, [followup, phase, weekIdx]);
+  }, [workoutLogs]);
 
   const setExerciseLog = useCallback((exKey, updater) => {
     setWorkoutLogs(prev => {
@@ -435,7 +444,7 @@ export default function App() {
             phase={phase} setPhase={setPhase} weekIdx={weekIdx} setWeekIdx={setWeekIdx}
             dayIdx={dayIdx} setDayIdx={setDayIdx} workoutLogs={workoutLogs} setExerciseLog={setExerciseLog}
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
-            elapsed={elapsed}
+            elapsed={elapsed} setElapsed={setElapsed}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} workoutLogs={workoutLogs} overrides={overrides} T={T} />}
@@ -550,7 +559,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed, setElapsed }) {
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
   const week = day.weeks[weekIdx];
@@ -597,21 +606,38 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
       <SectionTitle
         eyebrow={`${T("المرحلة", "Phase")} ${phase === 1 ? T("الأولى", "1") : T("الثانية", "2")} · ${T("أسبوع", "Week")} ${globalWeekNum}`}
         title={<Ed id={dayTitleId} fallback={defaultTitle} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20 }} width="14em" />}
-        right={<span style={{ fontSize: 13, fontWeight: 800, color: COLORS.gold }}>⏱ {formatMMSS(elapsed)}</span>}
       />
+
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+        background: "rgba(201,162,39,0.1)", border: `1px solid ${COLORS.gold}`, borderRadius: 14,
+        padding: "10px 16px", marginBottom: 14,
+      }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontSize: 13 }}>⏱</span>
+          <span style={{ fontSize: 30, fontWeight: 900, color: COLORS.gold, fontFamily: "'Cairo', sans-serif", letterSpacing: 1, fontVariantNumeric: "tabular-nums" }}>
+            {formatMMSS(elapsed)}
+          </span>
+          <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{T("وقت التمرين", "workout time")}</span>
+        </div>
+        <button onClick={() => setElapsed(0)} style={{
+          padding: "6px 12px", borderRadius: 10, border: `1px solid ${COLORS.gold}`, background: "transparent",
+          color: COLORS.gold, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0,
+        }}>↺ {T("تصفير", "Reset")}</button>
+      </div>
 
       <div style={{ background: COLORS.surface, borderRadius: 12, border: `1px solid ${COLORS.line}`, marginBottom: 14, overflow: "hidden" }}>
         <button onClick={() => setShowInstructions(s => !s)} style={{
           width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
           background: "none", border: "none", padding: "10px 14px", cursor: "pointer", color: COLORS.gold,
         }}>
-          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{T(`📋 تعليمات المدرب — الأسبوع ${globalWeekNum}`, `📋 Coach's instructions — Week ${globalWeekNum}`)}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{`📋 تعليمات المدرب — الأسبوع ${globalWeekNum}`}</span>
           <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{showInstructions ? T("إخفاء", "Hide") : T("عرض", "Show")}</span>
         </button>
         {showInstructions && (
           <ul style={{ margin: 0, padding: "0 14px 14px 28px", display: "flex", flexDirection: "column", gap: 8 }}>
             {instructionItems.map((item, i) => (
-              <li key={i} style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1.7 }}>{T(item.ar, item.en)}</li>
+              <li key={i} style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1.7 }}>{item.ar}</li>
             ))}
           </ul>
         )}
@@ -777,7 +803,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                       </div>
                     )}
                     {TEMPO_EXERCISES.has(ex.name) && (
-                      <div style={{ fontSize: 10.5, color: COLORS.gold, marginTop: 3 }}>⏱ {T(TEMPO_NOTE.ar, TEMPO_NOTE.en)}</div>
+                      <div style={{ fontSize: 10.5, color: COLORS.gold, marginTop: 3 }}>⏱ {TEMPO_NOTE.ar}</div>
                     )}
                   </div>
                 </div>
