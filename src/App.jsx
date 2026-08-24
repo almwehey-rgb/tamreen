@@ -137,14 +137,32 @@ const MEAL_CAT_TR = {"وجبات منزلية":"Home Meals","وجبات McDonald
 const TEMPO_NOTE = { ar: "نزول 3 ثواني · ثبات 1 ثانية تحت · صعود سريع", en: "3s down · 1s pause at bottom · fast up" };
 const TEMPO_EXERCISES = new Set(["بار عالي", "دامبل دفع", "جهاز أكتاف", "جهاز دفع", "دامبل ددلفت روم", "جهاز هاك سكوات", "ددلفت ستف"]);
 
-const COACH_INSTRUCTIONS = [
+const COACH_INSTRUCTIONS_ALWAYS = [
   { ar: "سجّل الوزن المستخدم وعدد التكرارات المحققة بكل جولة — إلزامي كل أسبوع عشان نتابع تطورك أسبوع بأسبوع.", en: "Log the weight used and the reps you actually hit each set — mandatory every week so progress can be tracked." },
   { ar: "أي جولة تخلصها بسهولة ما تنحسب — لازم توصل قريب من الفشل العضلي بكل جولة.", en: "A set finished too easily doesn't count — push each set close to muscular failure." },
   { ar: "لا تزيد الوزن إلا إذا وصلت لأعلى حد من مدى التكرارات المطلوب بكل الجولات، وبعدها زِد بالأسبوع اللي بعده.", en: "Only increase the weight once you hit the top of the target rep range across all sets — then bump it up next week." },
   { ar: "خذ مدى حركي كامل بكل تمرين: أقصى تمديد للعضلة وأقصى انقباض.", en: "Use a full range of motion on every exercise: maximum stretch and maximum contraction." },
-  { ar: "أسبوع الديلود (السادس والثاني عشر) هو راحة نشطة — خفف الأوزان 20-30% وابتعد عن الفشل العضلي.", en: "Deload weeks (6 and 12) are active recovery — cut weights 20-30% and avoid muscular failure." },
   { ar: "تقدر تبدّل تمرين معين، بس لازم تثبت عليه لبقية المرحلة، ولا تكرره بيوم ثاني.", en: "You can swap a specific exercise, but you must stick with it for the rest of the phase, and not repeat it on another day." },
 ];
+
+function getCoachWeekTips(phase, localWeek) {
+  if (localWeek === 1) {
+    return phase === 1
+      ? [{ ar: "الأسبوع الأول ممكن تحس إنه سهل، بس الصعوبة بتزيد تدريجياً لين توصل مرحلة ما تقدر تزيد ولا تكرار — اصبر وشد حيلك.", en: "Week 1 might feel easy, but the difficulty ramps up gradually until you can't add another rep — be patient and push through." }]
+      : [{ ar: "أول أسبوع بعد الديلود بيكون سهل نسبياً، بس أصعب من أول أسبوعين بالمرحلة الأولى. راح تستخدم نفس وزن الأسبوع الخامس، بس حاول تكسر رقم تكراراتك هالمرة.", en: "The first week after the deload is easier, but harder than the phase's first two weeks. Use the same weight as week 5, but try to beat your rep numbers this time." }];
+  }
+  if (localWeek >= 2 && localWeek <= 4) {
+    return [{ ar: "من هالأسبوع لين الخامس بيزيد حجم التمرين (عدد الجولات)، والتمارين نفسها تثبت لين نهاية المرحلة.", en: "From this week through week 5, training volume (number of sets) increases, while the exercises themselves stay fixed until the end of the phase." }];
+  }
+  if (localWeek === 5) {
+    return [
+      { ar: "من هالأسبوع لين الخامس بيزيد حجم التمرين (عدد الجولات)، والتمارين نفسها تثبت لين نهاية المرحلة.", en: "From this week through week 5, training volume (number of sets) increases, while the exercises themselves stay fixed until the end of the phase." },
+      { ar: "هالأسبوع آخر أسبوع بناء قبل الديلود — زد الأوزان والتكرارات لأقصى مجهود تقدر عليه بدون ما تضحي بالتكنيك.", en: "This is the last build week before the deload — push weights and reps to your max effort without sacrificing technique." },
+    ];
+  }
+  // localWeek === 6 (deload)
+  return [{ ar: "أسبوع ديلود (راحة نشطة): خفف الوزن 10-30% عن أعلى وزن استخدمته بالمرحلة، أو خلّك على بعد 3-4 تكرارات من الفشل العضلي. الهدف تخفيف الحمل عن المفاصل والعضلات عشان ترجع تكسر أرقامك بعده. لو تحس بتعب زايد، خلّك على نفس أرقام الأسبوع اللي قبله.", en: "Deload week (active recovery): cut weight 10-30% from the heaviest you used this phase, or stay 3-4 reps short of failure. The goal is easing the load on joints and muscles so you can push your numbers again after. If you feel extra fatigued, just repeat last week's numbers." }];
+}
 
 const COLORS = {
   canvas: "#343434", bg: "#101012", surface: "#18191B", surface2: "#202124", surface3: "#28292D",
@@ -526,6 +544,8 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const nextEx = nextIdx >= 0 ? day.exercises[nextIdx] : null;
   const nextName = nextEx ? T(nextEx.name, EX_TR[nextEx.name] || nextEx.name) : null;
   const [showInstructions, setShowInstructions] = useState(false);
+  const weekTips = getCoachWeekTips(phase, weekIdx + 1);
+  const instructionItems = [...weekTips, ...COACH_INSTRUCTIONS_ALWAYS];
 
   return (
     <div style={{ padding: "16px 16px 8px" }}>
@@ -539,12 +559,12 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
           background: "none", border: "none", padding: "10px 14px", cursor: "pointer", color: COLORS.gold,
         }}>
-          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{T("📋 تعليمات المدرب", "📋 Coach's instructions")}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{T(`📋 تعليمات المدرب — الأسبوع ${globalWeekNum}`, `📋 Coach's instructions — Week ${globalWeekNum}`)}</span>
           <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{showInstructions ? T("إخفاء", "Hide") : T("عرض", "Show")}</span>
         </button>
         {showInstructions && (
           <ul style={{ margin: 0, padding: "0 14px 14px 28px", display: "flex", flexDirection: "column", gap: 8 }}>
-            {COACH_INSTRUCTIONS.map((item, i) => (
+            {instructionItems.map((item, i) => (
               <li key={i} style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1.7 }}>{T(item.ar, item.en)}</li>
             ))}
           </ul>
