@@ -134,6 +134,18 @@ const DAY_TR = {"اليوم الأول: سحب ( ظهر + باي + أكتاف خ
 
 const MEAL_CAT_TR = {"وجبات منزلية":"Home Meals","وجبات McDonald's":"McDonald's","وجبات Subway":"Subway","سناكات":"Snacks"};
 
+const TEMPO_NOTE = { ar: "نزول 3 ثواني · ثبات 1 ثانية تحت · صعود سريع", en: "3s down · 1s pause at bottom · fast up" };
+const TEMPO_EXERCISES = new Set(["بار عالي", "دامبل دفع", "جهاز أكتاف", "جهاز دفع", "دامبل ددلفت روم", "جهاز هاك سكوات", "ددلفت ستف"]);
+
+const COACH_INSTRUCTIONS = [
+  { ar: "سجّل الوزن المستخدم وعدد التكرارات المحققة بكل جولة — إلزامي كل أسبوع عشان نتابع تطورك أسبوع بأسبوع.", en: "Log the weight used and the reps you actually hit each set — mandatory every week so progress can be tracked." },
+  { ar: "أي جولة تخلصها بسهولة ما تنحسب — لازم توصل قريب من الفشل العضلي بكل جولة.", en: "A set finished too easily doesn't count — push each set close to muscular failure." },
+  { ar: "لا تزيد الوزن إلا إذا وصلت لأعلى حد من مدى التكرارات المطلوب بكل الجولات، وبعدها زِد بالأسبوع اللي بعده.", en: "Only increase the weight once you hit the top of the target rep range across all sets — then bump it up next week." },
+  { ar: "خذ مدى حركي كامل بكل تمرين: أقصى تمديد للعضلة وأقصى انقباض.", en: "Use a full range of motion on every exercise: maximum stretch and maximum contraction." },
+  { ar: "أسبوع الديلود (السادس والثاني عشر) هو راحة نشطة — خفف الأوزان 20-30% وابتعد عن الفشل العضلي.", en: "Deload weeks (6 and 12) are active recovery — cut weights 20-30% and avoid muscular failure." },
+  { ar: "تقدر تبدّل تمرين معين، بس لازم تثبت عليه لبقية المرحلة، ولا تكرره بيوم ثاني.", en: "You can swap a specific exercise, but you must stick with it for the rest of the phase, and not repeat it on another day." },
+];
+
 const COLORS = {
   canvas: "#343434", bg: "#101012", surface: "#18191B", surface2: "#202124", surface3: "#28292D",
   line: "#34353A", text: "#F3F0E8", muted: "#A0A1A5", mutedDim: "#66686E",
@@ -513,6 +525,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const nextIdx = day.exercises.findIndex((_, i) => !workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.done);
   const nextEx = nextIdx >= 0 ? day.exercises[nextIdx] : null;
   const nextName = nextEx ? T(nextEx.name, EX_TR[nextEx.name] || nextEx.name) : null;
+  const [showInstructions, setShowInstructions] = useState(false);
 
   return (
     <div style={{ padding: "16px 16px 8px" }}>
@@ -520,6 +533,23 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
         eyebrow={`${T("المرحلة", "Phase")} ${phase === 1 ? T("الأولى", "1") : T("الثانية", "2")} · ${T("أسبوع", "Week")} ${globalWeekNum}`}
         title={<Ed id={dayTitleId} fallback={defaultTitle} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20 }} width="14em" />}
       />
+
+      <div style={{ background: COLORS.surface, borderRadius: 12, border: `1px solid ${COLORS.line}`, marginBottom: 14, overflow: "hidden" }}>
+        <button onClick={() => setShowInstructions(s => !s)} style={{
+          width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+          background: "none", border: "none", padding: "10px 14px", cursor: "pointer", color: COLORS.gold,
+        }}>
+          <span style={{ fontSize: 12.5, fontWeight: 800 }}>{T("📋 تعليمات المدرب", "📋 Coach's instructions")}</span>
+          <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{showInstructions ? T("إخفاء", "Hide") : T("عرض", "Show")}</span>
+        </button>
+        {showInstructions && (
+          <ul style={{ margin: 0, padding: "0 14px 14px 28px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {COACH_INSTRUCTIONS.map((item, i) => (
+              <li key={i} style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1.7 }}>{T(item.ar, item.en)}</li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
         {[1, 2].map(ph => (
@@ -644,6 +674,9 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                       <div style={{ fontSize: 11.5, color: COLORS.muted, marginTop: 2 }}>
                         {setsVal} {T("جولات ×", "sets ×")} {repsVal || "—"} {T("تكرار · راحة", "reps · rest")} {restVal || "—"}
                       </div>
+                    )}
+                    {TEMPO_EXERCISES.has(ex.name) && (
+                      <div style={{ fontSize: 10.5, color: COLORS.gold, marginTop: 3 }}>⏱ {T(TEMPO_NOTE.ar, TEMPO_NOTE.en)}</div>
                     )}
                   </div>
                 </div>
