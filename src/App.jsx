@@ -297,6 +297,13 @@ export default function App() {
   const saveTimer = useRef(null);
   const firstLoad = useRef(true);
 
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => { setElapsed(0); }, [phase, weekIdx, dayIdx]);
+
   const T = useCallback((ar, en) => (lang === "ar" ? ar : en), [lang]);
 
   useEffect(() => {
@@ -428,6 +435,7 @@ export default function App() {
             phase={phase} setPhase={setPhase} weekIdx={weekIdx} setWeekIdx={setWeekIdx}
             dayIdx={dayIdx} setDayIdx={setDayIdx} workoutLogs={workoutLogs} setExerciseLog={setExerciseLog}
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
+            elapsed={elapsed}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} workoutLogs={workoutLogs} overrides={overrides} T={T} />}
@@ -542,7 +550,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed }) {
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
   const week = day.weeks[weekIdx];
@@ -562,13 +570,6 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const [showInstructions, setShowInstructions] = useState(false);
   const weekTips = getCoachWeekTips(phase, weekIdx + 1);
   const instructionItems = [...weekTips, ...COACH_INSTRUCTIONS_ALWAYS];
-
-  const [elapsed, setElapsed] = useState(0);
-  useEffect(() => {
-    setElapsed(0);
-    const id = setInterval(() => setElapsed(e => e + 1), 1000);
-    return () => clearInterval(id);
-  }, [phase, weekIdx, dayIdx]);
 
   const [restTimer, setRestTimer] = useState(null);
   useEffect(() => { setRestTimer(null); }, [phase, weekIdx, dayIdx]);
@@ -809,7 +810,8 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                         setExerciseLog(key, cur => {
                           const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
                           reps[si] = val;
-                          return { ...cur, reps };
+                          const done = si === numSets - 1 ? !!val : cur.done;
+                          return { ...cur, reps, done };
                         });
                         if (val) startRestTimer(defaultName);
                       }}
