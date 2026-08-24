@@ -48,6 +48,18 @@ function getBestLoggedWeight(workoutLogs, exerciseName, excludeKey) {
 
 const ALL_EXERCISE_NAMES = [...new Set(PROGRAM.phase1.flatMap(day => day.exercises.map(ex => ex.name)))];
 
+function parseRestSeconds(restStr) {
+  const m = String(restStr || "").match(/(\d+):(\d+)/);
+  if (!m) return 60;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+function formatMMSS(totalSeconds) {
+  const s = Math.max(0, totalSeconds);
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
 function getWeekWorkoutStats(workoutLogs, globalWeek) {
   const phase = globalWeek <= 6 ? 1 : 2;
   const weekIdx = (globalWeek - 1) % 6;
@@ -547,11 +559,38 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const weekTips = getCoachWeekTips(phase, weekIdx + 1);
   const instructionItems = [...weekTips, ...COACH_INSTRUCTIONS_ALWAYS];
 
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [phase, weekIdx, dayIdx]);
+
+  const [restTimer, setRestTimer] = useState(null);
+  useEffect(() => { setRestTimer(null); }, [phase, weekIdx, dayIdx]);
+  useEffect(() => {
+    if (!restTimer || restTimer.remaining <= 0) return;
+    const id = setTimeout(() => setRestTimer(t => t && { ...t, remaining: t.remaining - 1 }), 1000);
+    return () => clearTimeout(id);
+  }, [restTimer]);
+  useEffect(() => {
+    if (restTimer && restTimer.remaining === 0) {
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      const t = setTimeout(() => setRestTimer(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [restTimer?.remaining]);
+  const startRestTimer = (exName, restStr) => {
+    const total = parseRestSeconds(restStr);
+    setRestTimer({ exName, remaining: total, total });
+  };
+
   return (
     <div style={{ padding: "16px 16px 8px" }}>
       <SectionTitle
         eyebrow={`${T("المرحلة", "Phase")} ${phase === 1 ? T("الأولى", "1") : T("الثانية", "2")} · ${T("أسبوع", "Week")} ${globalWeekNum}`}
         title={<Ed id={dayTitleId} fallback={defaultTitle} editMode={editMode} overrides={overrides} setOverride={setOverride} style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: 20 }} width="14em" />}
+        right={<span style={{ fontSize: 13, fontWeight: 800, color: COLORS.gold }}>⏱ {formatMMSS(elapsed)}</span>}
       />
 
       <div style={{ background: COLORS.surface, borderRadius: 12, border: `1px solid ${COLORS.line}`, marginBottom: 14, overflow: "hidden" }}>
@@ -724,11 +763,15 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
                 {Array.from({ length: numSets }).map((_, si) => (
                   <div key={si} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     <input type="text" inputMode="numeric" placeholder="-" value={(log.reps && log.reps[si]) || ""}
-                      onChange={e => setExerciseLog(key, cur => {
-                        const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
-                        reps[si] = toEnNum(e.target.value);
-                        return { ...cur, reps };
-                      })}
+                      onChange={e => {
+                        const val = toEnNum(e.target.value);
+                        setExerciseLog(key, cur => {
+                          const reps = Array.from({ length: numSets }).map((_, k) => (cur.reps && cur.reps[k]) || "");
+                          reps[si] = val;
+                          return { ...cur, reps };
+                        });
+                        if (val) startRestTimer(defaultName, restVal);
+                      }}
                       style={{ width: 40, height: 40, borderRadius: "50%", textAlign: "center", border: `2px solid ${(log.reps && log.reps[si]) ? COLORS.gold : COLORS.line}`, background: (log.reps && log.reps[si]) ? "rgba(201,162,39,0.14)" : COLORS.surface2, color: COLORS.text, fontWeight: 800, fontSize: 14, fontFamily: "'Cairo', sans-serif" }} />
                     <span style={{ fontSize: 9, color: COLORS.mutedDim }}>{T("جولة", "Set")} {si + 1}</span>
                   </div>
@@ -738,6 +781,37 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           );
         })}
       </div>
+
+      {restTimer && (
+        <div style={{
+          position: "fixed", bottom: 72, left: "50%", transform: "translateX(-50%)", width: "min(100%, 520px)",
+          padding: "0 16px", zIndex: 45, boxSizing: "border-box",
+        }}>
+          <div style={{
+            background: restTimer.remaining === 0 ? "rgba(90,160,107,0.95)" : "rgba(24,25,27,0.96)",
+            backdropFilter: "blur(10px)", border: `1px solid ${restTimer.remaining === 0 ? COLORS.green : COLORS.gold}`,
+            borderRadius: 14, padding: "10px 14px", boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.gold, flexShrink: 0 }}>
+              {restTimer.remaining === 0 ? T("✓ خلصت الراحة", "✓ Rest done") : `⏳ ${formatMMSS(restTimer.remaining)}`}
+            </span>
+            <div style={{ flex: 1, height: 5, borderRadius: 4, background: COLORS.surface3, overflow: "hidden" }}>
+              <div style={{
+                width: `${((restTimer.total - restTimer.remaining) / restTimer.total) * 100}%`, height: "100%",
+                background: restTimer.remaining === 0 ? "#0d1a10" : COLORS.gold, transition: "width 1s linear",
+              }} />
+            </div>
+            <span style={{ fontSize: 11, color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.muted, flexShrink: 0, maxWidth: "9em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {restTimer.exName}
+            </span>
+            <button onClick={() => setRestTimer(null)} style={{
+              flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: "none", cursor: "pointer",
+              background: "rgba(255,255,255,0.15)", color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.text, fontSize: 12, lineHeight: 1,
+            }}>✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
