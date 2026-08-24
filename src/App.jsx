@@ -294,7 +294,7 @@ function findResumePoint(workoutLogs) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useState("workout");
   const [loaded, setLoaded] = useState(false);
   const [workoutLogs, setWorkoutLogs] = useState({});
   const [followup, setFollowup] = useState(emptyFollowup());
