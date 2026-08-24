@@ -853,31 +853,41 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
 
       {restTimer && (
         <div style={{
-          position: "fixed", bottom: 72, left: "50%", transform: "translateX(-50%)", width: "min(100%, 520px)",
+          position: "fixed", bottom: 76, left: "50%", transform: "translateX(-50%)", width: "min(100%, 520px)",
           padding: "0 16px", zIndex: 45, boxSizing: "border-box",
         }}>
           <div style={{
-            background: restTimer.remaining === 0 ? "rgba(90,160,107,0.95)" : "rgba(24,25,27,0.96)",
-            backdropFilter: "blur(10px)", border: `1px solid ${restTimer.remaining === 0 ? COLORS.green : COLORS.gold}`,
-            borderRadius: 14, padding: "10px 14px", boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
-            display: "flex", alignItems: "center", gap: 10,
+            background: restTimer.remaining === 0 ? "rgba(90,160,107,0.97)" : "rgba(20,21,23,0.97)",
+            backdropFilter: "blur(12px)", border: `1.5px solid ${restTimer.remaining === 0 ? COLORS.green : COLORS.gold}`,
+            borderRadius: 18, padding: "12px 18px 16px", boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
           }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.gold, flexShrink: 0 }}>
-              {restTimer.remaining === 0 ? T("✓ خلصت الراحة", "✓ Rest done") : `⏳ ${formatMMSS(restTimer.remaining)}`}
-            </span>
-            <div style={{ flex: 1, height: 5, borderRadius: 4, background: COLORS.surface3, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{
+                fontSize: 12.5, fontWeight: 700, color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.muted,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
+              }}>
+                {restTimer.remaining === 0 ? T("انتهت الراحة", "Rest finished") : T("راحة", "Resting")} · {restTimer.exName}
+              </span>
+              <button onClick={() => setRestTimer(null)} style={{
+                flexShrink: 0, width: 26, height: 26, borderRadius: "50%", border: "none", cursor: "pointer",
+                background: "rgba(255,255,255,0.15)", color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.text, fontSize: 13, lineHeight: 1,
+              }}>✕</button>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 20 }}>{restTimer.remaining === 0 ? "✓" : "⏳"}</span>
+              <span style={{
+                fontSize: 40, fontWeight: 900, fontFamily: "'Cairo', sans-serif", letterSpacing: 1,
+                fontVariantNumeric: "tabular-nums", color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.gold,
+              }}>
+                {restTimer.remaining === 0 ? T("خلصت!", "Done!") : formatMMSS(restTimer.remaining)}
+              </span>
+            </div>
+            <div style={{ height: 9, borderRadius: 6, background: "rgba(255,255,255,0.1)", overflow: "hidden" }}>
               <div style={{
                 width: `${((restTimer.total - restTimer.remaining) / restTimer.total) * 100}%`, height: "100%",
                 background: restTimer.remaining === 0 ? "#0d1a10" : COLORS.gold, transition: "width 1s linear",
               }} />
             </div>
-            <span style={{ fontSize: 11, color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.muted, flexShrink: 0, maxWidth: "9em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {restTimer.exName}
-            </span>
-            <button onClick={() => setRestTimer(null)} style={{
-              flexShrink: 0, width: 22, height: 22, borderRadius: "50%", border: "none", cursor: "pointer",
-              background: "rgba(255,255,255,0.15)", color: restTimer.remaining === 0 ? "#0d1a10" : COLORS.text, fontSize: 12, lineHeight: 1,
-            }}>✕</button>
           </div>
         </div>
       )}
