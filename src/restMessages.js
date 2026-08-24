@@ -6,10 +6,13 @@
 /* ١) تصنيف التمرين                                                    */
 /* ------------------------------------------------------------------ */
 
-const CORE_KEYWORDS = ["معدة", "بطن", "بلانك", "كرنش", "سمانة", "مثلثات"];
+// "معده"/"ددلفت"/"بطات" هي التهجئة الفعلية المستخدمة بأسماء التمارين
+// بالبرنامج (تختلف عن "معدة"/"ديدلفت"/"سمانة" الفصحى) — لازم الاثنتين
+// عشان المطابقة تشتغل صح.
+const CORE_KEYWORDS = ["معدة", "معده", "بطن", "بلانك", "كرنش", "سمانة", "بطات", "مثلثات"];
 
 const HEAVY_KEYWORDS = [
-  "سكوات", "ديدلفت", "بنش", "بار", "تجديف", "ضغط أرجل", "لنجز", "عقلة",
+  "سكوات", "ديدلفت", "ددلفت", "بنش", "بار", "تجديف", "ضغط أرجل", "لنجز", "عقلة",
 ];
 
 const ISOLATION_KEYWORDS = [
@@ -24,9 +27,12 @@ export function classifyExercise(input) {
 
   const name = input.exerciseName;
 
+  // الترتيب مقصود: core و isolation كلماتها أدق (تمييزية) وتُفحص قبل
+  // heavy، لأن كلمات heavy زي "بار"/"بنش" عامة وتنطبق كجزء من أسماء
+  // تمارين عزل أو معدة (مثال: "بنش مرتفع بايسبس"، "بنش منخفض معده").
   if (has(name, CORE_KEYWORDS)) return "core";
-  if (has(name, HEAVY_KEYWORDS)) return "heavy";
   if (has(name, ISOLATION_KEYWORDS)) return "isolation";
+  if (has(name, HEAVY_KEYWORDS)) return "heavy";
 
   // fallback على الأرقام: جولات كثيرة + تكرارات قليلة = ثقيل
   if (input.sets >= 4 && input.maxReps <= 10) return "heavy";
