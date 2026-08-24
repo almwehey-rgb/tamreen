@@ -279,6 +279,12 @@ function getLatestScheduleWeek(followup) {
   return null;
 }
 
+function isDayFullyDone(workoutLogs, phase, weekIdx, dayIdx) {
+  const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
+  const exercises = days[dayIdx].exercises;
+  return exercises.length > 0 && exercises.every((_, i) => workoutLogs[`p${phase}-w${weekIdx}-d${dayIdx}-e${i}`]?.done);
+}
+
 function findResumePoint(workoutLogs) {
   for (const ph of [1, 2]) {
     const days = ph === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
@@ -310,11 +316,26 @@ export default function App() {
   const firstLoad = useRef(true);
 
   const [elapsed, setElapsed] = useState(0);
+  const [workoutTimes, setWorkoutTimes] = useState({});
+  const sessionKey = `p${phase}-w${weekIdx}-d${dayIdx}`;
+  const elapsedRef = useRef(elapsed);
+  elapsedRef.current = elapsed;
+  const workoutTimesRef = useRef(workoutTimes);
+  workoutTimesRef.current = workoutTimes;
+
   useEffect(() => {
-    const id = setInterval(() => setElapsed(e => e + 1), 1000);
+    const id = setInterval(() => {
+      setElapsed(e => (workoutTimesRef.current[sessionKey] != null ? e : e + 1));
+    }, 1000);
     return () => clearInterval(id);
-  }, []);
-  useEffect(() => { setElapsed(0); }, [phase, weekIdx, dayIdx]);
+  }, [sessionKey]);
+  useEffect(() => { setElapsed(workoutTimesRef.current[sessionKey] ?? 0); }, [sessionKey]);
+  useEffect(() => {
+    if (workoutTimesRef.current[sessionKey] != null) return;
+    if (isDayFullyDone(workoutLogs, phase, weekIdx, dayIdx)) {
+      setWorkoutTimes(prev => (prev[sessionKey] != null ? prev : { ...prev, [sessionKey]: elapsedRef.current }));
+    }
+  }, [workoutLogs, sessionKey, phase, weekIdx, dayIdx]);
 
   const T = useCallback((ar, en) => (lang === "ar" ? ar : en), [lang]);
 
@@ -333,6 +354,7 @@ export default function App() {
           setDayIdx(resume.dayIdx);
           if (parsed.overrides) setOverrides(parsed.overrides);
           if (parsed.lang) setLang(parsed.lang);
+          if (parsed.workoutTimes) setWorkoutTimes(parsed.workoutTimes);
         }
       } catch (e) { /* nothing saved yet */ }
       setLoaded(true);
@@ -345,7 +367,7 @@ export default function App() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang }), false);
+        await window.storage.set(STORAGE_KEY, JSON.stringify({ workoutLogs, followup, overrides, lang, workoutTimes }), false);
         setToast(T("تم الحفظ", "Saved"));
         setTimeout(() => setToast(null), 1100);
       } catch (e) {
@@ -354,9 +376,19 @@ export default function App() {
       }
     }, 700);
     return () => clearTimeout(saveTimer.current);
-  }, [workoutLogs, followup, overrides, lang, loaded]);
+  }, [workoutLogs, followup, overrides, lang, workoutTimes, loaded]);
 
   const globalWeekNum = phase === 1 ? weekIdx + 1 : weekIdx + 7;
+
+  const resetWorkoutTimer = useCallback(() => {
+    setElapsed(0);
+    setWorkoutTimes(prev => {
+      if (prev[sessionKey] == null) return prev;
+      const next = { ...prev };
+      delete next[sessionKey];
+      return next;
+    });
+  }, [sessionKey]);
 
   const openTab = useCallback((nextTab) => {
     if (nextTab === "workout") {
@@ -444,7 +476,7 @@ export default function App() {
             phase={phase} setPhase={setPhase} weekIdx={weekIdx} setWeekIdx={setWeekIdx}
             dayIdx={dayIdx} setDayIdx={setDayIdx} workoutLogs={workoutLogs} setExerciseLog={setExerciseLog}
             globalWeekNum={globalWeekNum} T={T} editMode={editMode} overrides={overrides} setOverride={setOverride}
-            elapsed={elapsed} setElapsed={setElapsed}
+            elapsed={elapsed} isTimeSaved={workoutTimes[sessionKey] != null} resetWorkoutTimer={resetWorkoutTimer}
           />
         )}
         {tab === "followup" && <FollowupTab followup={followup} setFollowup={setFollowup} workoutLogs={workoutLogs} overrides={overrides} T={T} />}
@@ -559,7 +591,7 @@ function HomeTab({ followup, T, editMode, overrides, setOverride }) {
 }
 
 /* ---------------- WORKOUT ---------------- */
-function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed, setElapsed }) {
+function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, workoutLogs, setExerciseLog, globalWeekNum, T, editMode, overrides, setOverride, elapsed, isTimeSaved, resetWorkoutTimer }) {
   const days = phase === 1 ? PROGRAM.phase1 : PROGRAM.phase2;
   const day = days[dayIdx];
   const week = day.weeks[weekIdx];
@@ -610,19 +642,20 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
 
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-        background: "rgba(201,162,39,0.1)", border: `1px solid ${COLORS.gold}`, borderRadius: 14,
+        background: isTimeSaved ? "rgba(90,160,107,0.1)" : "rgba(201,162,39,0.1)",
+        border: `1px solid ${isTimeSaved ? COLORS.green : COLORS.gold}`, borderRadius: 14,
         padding: "10px 16px", marginBottom: 14,
       }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span style={{ fontSize: 13 }}>⏱</span>
-          <span style={{ fontSize: 30, fontWeight: 900, color: COLORS.gold, fontFamily: "'Cairo', sans-serif", letterSpacing: 1, fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ fontSize: 13 }}>{isTimeSaved ? "✓" : "⏱"}</span>
+          <span style={{ fontSize: 30, fontWeight: 900, color: isTimeSaved ? COLORS.green : COLORS.gold, fontFamily: "'Cairo', sans-serif", letterSpacing: 1, fontVariantNumeric: "tabular-nums" }}>
             {formatMMSS(elapsed)}
           </span>
-          <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{T("وقت التمرين", "workout time")}</span>
+          <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{isTimeSaved ? T("وقت التمرين — محفوظ", "workout time — saved") : T("وقت التمرين", "workout time")}</span>
         </div>
-        <button onClick={() => setElapsed(0)} style={{
-          padding: "6px 12px", borderRadius: 10, border: `1px solid ${COLORS.gold}`, background: "transparent",
-          color: COLORS.gold, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0,
+        <button onClick={resetWorkoutTimer} style={{
+          padding: "6px 12px", borderRadius: 10, border: `1px solid ${isTimeSaved ? COLORS.green : COLORS.gold}`, background: "transparent",
+          color: isTimeSaved ? COLORS.green : COLORS.gold, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0,
         }}>↺ {T("تصفير", "Reset")}</button>
       </div>
 
