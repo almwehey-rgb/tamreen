@@ -656,6 +656,14 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   const weekTips = getCoachWeekTips(phase, weekIdx + 1);
   const instructionItems = [...weekTips, ...COACH_INSTRUCTIONS_ALWAYS];
 
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+  );
+  const requestNotifPermission = () => {
+    if (typeof Notification === "undefined") return;
+    Notification.requestPermission().then(setNotifPermission);
+  };
+
   const [restTimer, setRestTimer] = useState(null);
   useEffect(() => { setRestTimer(null); }, [phase, weekIdx, dayIdx]);
   // مبني على endTime (وقت حقيقي) مو عدّاد ينقص كل تِك، عشان يفضل صحيح
@@ -682,6 +690,11 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
   useEffect(() => {
     if (restTimer && restTimer.remaining === 0) {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try {
+          new Notification(T("⏱ انتهت الراحة", "⏱ Rest finished"), { body: restTimer.subline, tag: "rest-timer" });
+        } catch (e) { /* some browsers restrict Notification off the main thread/context */ }
+      }
       const t = setTimeout(() => setRestTimer(null), 4000);
       return () => clearTimeout(t);
     }
@@ -722,10 +735,18 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
           </span>
           <span style={{ fontSize: 11, color: COLORS.mutedDim }}>{isTimeSaved ? T("وقت التمرين — محفوظ", "workout time — saved") : T("وقت التمرين", "workout time")}</span>
         </div>
-        <button onClick={resetWorkoutTimer} style={{
-          padding: "6px 12px", borderRadius: 10, border: `1px solid ${isTimeSaved ? COLORS.green : COLORS.gold}`, background: "transparent",
-          color: isTimeSaved ? COLORS.green : COLORS.gold, fontSize: 12, fontWeight: 800, cursor: "pointer", flexShrink: 0,
-        }}>↺ {T("تصفير", "Reset")}</button>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {notifPermission !== "granted" && (
+            <button onClick={requestNotifPermission} title={T("فعّل تنبيه انتهاء الراحة", "Enable rest-finished alert")} style={{
+              padding: "6px 10px", borderRadius: 10, border: `1px solid ${isTimeSaved ? COLORS.green : COLORS.gold}`, background: "transparent",
+              color: isTimeSaved ? COLORS.green : COLORS.gold, fontSize: 12, fontWeight: 800, cursor: "pointer",
+            }}>🔔</button>
+          )}
+          <button onClick={resetWorkoutTimer} style={{
+            padding: "6px 12px", borderRadius: 10, border: `1px solid ${isTimeSaved ? COLORS.green : COLORS.gold}`, background: "transparent",
+            color: isTimeSaved ? COLORS.green : COLORS.gold, fontSize: 12, fontWeight: 800, cursor: "pointer",
+          }}>↺ {T("تصفير", "Reset")}</button>
+        </div>
       </div>
 
       <div style={{ background: COLORS.surface, borderRadius: 12, border: `1px solid ${COLORS.line}`, marginBottom: 14, overflow: "hidden" }}>
