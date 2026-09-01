@@ -658,11 +658,27 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
 
   const [restTimer, setRestTimer] = useState(null);
   useEffect(() => { setRestTimer(null); }, [phase, weekIdx, dayIdx]);
+  // مبني على endTime (وقت حقيقي) مو عدّاد ينقص كل تِك، عشان يفضل صحيح
+  // حتى لو المتصفح جمّد التبويب وأنت طالع من التطبيق أو مقفل الشاشة —
+  // ولما ترجع يصحح نفسه فوراً بدل ما يفضل واقف بمكانه.
   useEffect(() => {
-    if (!restTimer || restTimer.remaining <= 0) return;
-    const id = setTimeout(() => setRestTimer(t => t && { ...t, remaining: t.remaining - 1 }), 1000);
-    return () => clearTimeout(id);
-  }, [restTimer]);
+    if (!restTimer) return;
+    const tick = () => {
+      setRestTimer(t => {
+        if (!t) return t;
+        const remaining = Math.max(0, Math.round((t.endTime - Date.now()) / 1000));
+        return remaining === t.remaining ? t : { ...t, remaining };
+      });
+    };
+    const id = setInterval(tick, 1000);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("focus", tick);
+    };
+  }, [restTimer?.endTime]);
   useEffect(() => {
     if (restTimer && restTimer.remaining === 0) {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -680,6 +696,7 @@ function WorkoutTab({ phase, setPhase, weekIdx, setWeekIdx, dayIdx, setDayIdx, w
       cue: msg.cue,
       remaining: msg.restSeconds,
       total: msg.restSeconds,
+      endTime: Date.now() + msg.restSeconds * 1000,
     });
   };
 
